@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="05c84e5f-381a-49be-afc5-99bb1ea1c71c" name="nexmed" url="http://mars.apogeehost.com/~nexmed">
+        <fileTransfer host="mars.apogeehost.com" port="22" privateKey="$PROJECT_DIR$/../mppapogee.ppk" rootFolder="/home/nexmed" accessType="SFTP" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
