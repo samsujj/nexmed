@@ -16,12 +16,29 @@ use SSilence\ImapClient\ImapClientException;
 use SSilence\ImapClient\ImapConnect;
 use SSilence\ImapClient\ImapClient as Imap;
 
+$searchmail = array();
+$keyword = '';
+
+global $AI;
+
+$userid = $AI->user->userID;
+$maildata = array('email'=>'dev007@nexmedsolutions.com','password'=>'P@ss0987');
+
+$data = $AI->db->GetAll("SELECT * FROM user_mails WHERE userID = " . (int) $userid);
+
+if(isset($data[0])){
+    $password = base64_decode(base64_decode($data[0]['password']));
+
+    $maildata =  array('email'=>$data[0]['email'],'password'=>$password);
+}
+
+$cururl= 'imapinbox';
 
 
 
 $mailbox = 'galaxy.apogeehost.com';
-$username = 'dev007@nexmedsolutions.com';
-$password = 'P@ss0987';
+$username = @$maildata['email'];
+$password = @$maildata['password'];
 $encryption = Imap::ENCRYPT_TLS; // or ImapClient::ENCRYPT_SSL or ImapClient::ENCRYPT_TLS or null
 
 // open connection
@@ -54,64 +71,30 @@ try{
     die();
 }
 
-// get all folders as array of strings
-//$folders = $imap->getFolders();
-//foreach($folders as $folder)
-//{
-//    print_r($folder);
-//
-//}
+$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
+
+
+$emails = array();
+$emaillist = array();
+$overallMessages = 0;
+$trashcount = 0;
+
+
 $imap->selectFolder('INBOX');
-
-// count messages in current folder
- $overallMessages = $imap->countMessages();
- $unreadMessages = $imap->countUnreadMessages();
 $emails = $imap->getMessages();
-//echo "<br/>";
-//var_dump($emails);
-foreach ($emails as $key=>$email){
 
-    /*print_r($key);
-    echo "<br/>";
-    print_r($email);
-    echo "===============";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";*/
+$imap->selectFolder('INBOX.Trash');
+$trashcount = $imap->countMessages();
 
-    //echo "id==".$email['id'];
-    //echo "from==".$email['from'];
-    //echo "<br/>";
-    $messageheader=$imap->getMessageHeader($email['id']);
-   /* $messageheader=$imap->getMessageHeader($email['id']);
-    print_r($messageheader->from[0]->mailbox);
-    print_r($messageheader->from[0]->host);
-    echo "<pre>";
-    print_r($messageheader);
-    echo "<br/>";
-    echo "</pre>";
-    echo "<br/>";
-    foreach ($email as $k=>$content){
-        var_dump($content);
-        echo "<br/>";
-        var_dump($k);
-        echo "<br/>";
-        echo "<br/>";
-        echo "<br/>";
-
-    }
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";*/
-}
 $imap->selectFolder('INBOX.Sent');
 $emaillist = $imap->getMessages();
-
-// count messages in current folder
 $overallMessages = $imap->countMessages();
+
+$imap->selectFolder('INBOX.Drafts');
+$draftscount = $imap->countMessages();
+
+
+
 global $AI;
 $AI->skin->css('includes/plugins/imap/style.css');
 ?>
@@ -140,17 +123,11 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <div class="box-body no-padding collapse navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
-                                    <li class="active">
-                                        <a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span> Inbox
-                                            <span class="label label-green pull-right"><?php echo count($emails); ?></span></a></li>
+                                    <li><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span> Inbox <span class="label label-green pull-right"><?php echo count($emails); ?></span></a></li>
+                                    <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
+                                    <li class="active"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
+                                    <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
 
-                                   <!-- <li><a href="#"><span class="glyphicon glyphicon-star"></span> Starred <span class="label label-yellow pull-right"></span></a></li>-->
-
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-bookmark"></span> Important</a></li>-->
-
-                                    <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-pencil"></span> Drafts</a></li>
-                                    <li><a href="#">More <span class="glyphicon glyphicon-chevron-down"></span> </a></li>-->
                                 </ul>
                             </div>
                             <!-- /.box-body -->
@@ -201,13 +178,25 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                         <tbody>
                                         <?php
                                         foreach ($emaillist as $key=>$email) {
+                                            $isAttach = 0;
+
+                                            $structure = imap_fetchstructure($stream, $email['id']);
+
+                                            if(isset($structure->parts) && count($structure->parts)) {
+                                                for ($i = 0; $i < count($structure->parts); $i++) {
+                                                    if (isset($structure->parts[$i]->disposition) && strtoupper($structure->parts[$i]->disposition) == 'ATTACHMENT') {
+                                                        $isAttach = 1;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
+
                                             ?>
 
-                                            <tr class='clickable-row'
-                                                data-href='http://probiddealer.influxiq.com/#/writemail'>
+                                            <tr>
                                                 <td><input type="checkbox"></td>
-                                                <td class="mailbox-star"><a href="#"><span
-                                                            class="glyphicon glyphicon-star text-yellow"></span></a>
+                                                <td class="mailbox-star"><a href="javascript:void(0);"><span class="glyphicon glyphicon-star text-yellow"></span></a>
                                                 </td>
                                                 <td class="mailbox-name"><a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><b><?php echo $email['from'] ; ?></b></a>
                                                 </td>
@@ -215,7 +204,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                                    <!-- <b class="imptxt">important</b> -->
                                                     <a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><?php echo $email['subject'] ; ?> </a>
                                                 </td>
-                                                <td class="mailbox-attachment"></td>
+                                                <td class="mailbox-attachment"><?php echo ($isAttach)?'<span class="glyphicon glyphicon-paperclip"></span>':''; ?></td>
                                                 <td class="mailbox-date"><?php echo
                                                     date('m/d/Y H:i:s', $email['udate']); ; ?></td>
                                             </tr>

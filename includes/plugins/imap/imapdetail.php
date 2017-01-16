@@ -45,36 +45,35 @@ try{
     die();
 }
 
+
 $cururl = 'imapdetail?id='.$_GET['id'];
 
+$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
+$uid = imap_uid($stream,$_GET['id']);
 
 $imap->selectFolder('INBOX');
-
-$emails = $imap->getMessages();
-
-$messageheader=$imap->getMessageHeader(@$_GET['id']);
-$msgbody=$imap->getBody(@$_GET['id']);
-
-$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
-$header=imap_fetchstructure($stream,@$_GET['id']);
-
-$attchaments=$imap->getAttachment(@$_GET['id'],0);
+$countinbox = $imap->countMessages();
+$messageheader=$imap->getMessageHeader($uid);
+$msgbody=$imap->getBody($uid);
 
 
+$imap->selectFolder('INBOX.Sent');
+$overallMessages = $imap->countMessages();
 
-//file_put_contents($_SERVER['DOCUMENT_ROOT'].'/uploads/email_attach/'.$attchaments['name'], $attchaments['content']);
+$imap->selectFolder('INBOX.Trash');
+$trashcount = $imap->countMessages();
 
-//$fp = fopen($attchaments['name'], 'w');
+$imap->selectFolder('INBOX.Drafts');
+$draftscount = $imap->countMessages();
 
 
 
 
-$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
-$structure = imap_fetchstructure($stream, @$_GET['id']);
 
 $j=0;
 
 $attachs = array();
+$structure = imap_fetchstructure($stream, @$_GET['id']);
 
 if(isset($structure->parts) && count($structure->parts)) {
 
@@ -126,9 +125,8 @@ if(isset($structure->parts) && count($structure->parts)) {
     }
 }
 
-
-if(isset($_GET['mode']) && isset($_GET['attach_id'])){
-    if($_GET['mode'] == 'download'){
+if(isset($_GET['mode'])){
+    if($_GET['mode'] == 'download' && isset($_GET['attach_id'])){
         if(isset($attachs[$_GET['attach_id']])){
             $filename = $_SERVER['DOCUMENT_ROOT'].'/uploads/email_attach/'.rand().'_'.time().$attachs[$_GET['attach_id']]['name'];
             file_put_contents($filename, $attachs[$_GET['attach_id']]['attachment']);
@@ -151,15 +149,21 @@ if(isset($_GET['mode']) && isset($_GET['attach_id'])){
                 exit;
             }
         }
+    }elseif ($_GET['mode'] == 'delete'){
+        if(isset($_GET['id'])){
+            imap_mail_move($stream, $_GET['id'], 'INBOX.Trash');
+            imap_expunge($stream);
+        }
+        util_redirect('imapinbox');
     }
 }
 
 
-$count=0;
 $attchmentstr='';
 
 
 if(count($attachs)){
+    $attchmentstr .= '<ul class="mailbox-attachments clearfix hide">';
     foreach($attachs as $key=>$row){
         $attchmentstr .='<li>
                             <span class="mailbox-attachment-icon">
@@ -174,13 +178,9 @@ if(count($attachs)){
                                         </div>
                                     </li>';
     }
+    $attchmentstr .= '</ul>';
 }
 
-
-$imap->selectFolder('INBOX.Sent');
-
-// count messages in current folder
-$overallMessages = $imap->countMessages();
 
 
 global $AI;
@@ -208,12 +208,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
-                                    <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-star"></span> Starred <span class="label label-yellow pull-right">12</span></a></li>
-                                    <li><a href="#"><span class="glyphicon glyphicon-bookmark"></span> Important</a></li>-->
+                                    <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo $countinbox; ?></span></a></li>
+                                    <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
                                     <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-pencil"></span> Drafts</a></li>
-                                    <li><a href="#">More <span class="glyphicon glyphicon-chevron-down"></span> </a></li>-->
+                                    <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
                                 </ul>
                             </div>
                             <!-- /.box-body -->
@@ -230,14 +228,14 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <!-- /.box-header -->
                             <div class="box-body no-padding" style="margin-top: 15px;">
-                                <!--<div class="mailbox-controls with-border">
+                                <div class="mailbox-controls with-border">
                                     <div class="pull-left readmailheadercontrol">
-                                        <button type="button" class="btn replybtn"><i class="glyphicon glyphicon-arrow-left"></i> Forward</button>
+                                        <a type="button" class="btn replybtn"  href="imapcreate?type=replyIn&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-left"></i> Reply</a>
 
-                                        <button type="button" class="btn forwardbtn"><i class="glyphicon glyphicon-arrow-right"></i> Forward</button>
-                                        <button type="button" class="btn trashbtn"><i class="glyphicon glyphicon-trash"></i> Trash</button>
+                                        <a type="button" class="btn forwardbtn" href="imapcreate?type=forwardIn&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-right"></i> Forward</a>
+                                        <a type="button" class="btn trashbtn" href="<?php echo $cururl?>&mode=delete"><i class="glyphicon glyphicon-trash"></i> Trash</a>
                                     </div>
-                                </div>-->
+                                </div>
                                 <div class="mailbox-read-info">
                                     <h5 class="form-control"><span class="span1">From</span> <span class="span2"> <?php echo $messageheader->from[0]->personal." < ".$messageheader->from[0]->mailbox."@".$messageheader->from[0]->host." >"; ?> </span></h5>
                                     <h5 class="form-control"><span class="span1">Subject</span> <span class="span2"><?php echo $messageheader->subject ; ?></span> </h5>
@@ -252,11 +250,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <!-- /.box-body -->
                             <div class="box-footer">
-                                <ul class="mailbox-attachments clearfix hide">
-
-                                    <?php echo $attchmentstr; ?>
-
-                                </ul>
+                                <?php echo $attchmentstr; ?>
                             </div>
                         </div>
                         <!-- /. box -->

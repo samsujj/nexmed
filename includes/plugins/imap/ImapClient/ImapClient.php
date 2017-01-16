@@ -534,7 +534,7 @@ class ImapClient
         $email = array(
             'to'        => isset($header->to) ? $this->arrayToAddress($header->to) : '',
             'from'      => $this->toAddress($header->from[0]),
-            'date'      => $header->date,
+            'date'      => (isset($header->date))?$header->date:'',
             'udate'     => $header->udate,
             'subject'   => $subject,
             'priority'  => $priority,

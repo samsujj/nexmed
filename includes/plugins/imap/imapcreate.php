@@ -21,6 +21,7 @@ use SSilence\ImapClient\ImapClient as Imap;
 
 global $AI;
 
+
 $userid = $AI->user->userID;
 $maildata = array('email'=>'dev007@nexmedsolutions.com','password'=>'P@ss0987','name'=>'Debasis Kar');
 
@@ -46,12 +47,102 @@ try{
 }
 
 
+$toaddr = '';
+$subject = '';
+$pmailbody = '';
+
+if(isset($_GET['type']) && isset($_GET['id'])){
+    if($_GET['type'] == 'replyIn' || $_GET['type'] == 'forwardIn'){
+        $mailid = $_GET['id'];
+        $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
+        $uid = imap_uid($stream,$_GET['id']);
+
+        $imap->selectFolder('INBOX');
+        $messageheader=$imap->getMessageHeader($uid);
+
+
+        if($_GET['type'] == 'replyIn'){
+            if(isset($messageheader->reply_to)){
+                $reply = $messageheader->reply_to;
+                if(isset($reply[0])){
+                    $toaddr = $reply[0]->mailbox."@".$reply[0]->host;
+                }
+            }
+
+            $subject = $messageheader->subject;
+            if(!empty($subject)){
+                if(substr($subject, 0, 3) != 'Re:'){
+                    $subject = 'Re: '.$subject;
+                }
+            }
+        }
+
+        if($_GET['type'] == 'forwardIn'){
+            $subject = $messageheader->subject;
+            $subject = 'Fwd: '.$subject;
+        }
+
+    }
+}
+
+
 $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
 
 
 if(util_is_POST()) {
+
     $mailbody = $_POST['body'][0];
 
+    $boundary = "------=".md5(uniqid(rand()));
+
+    $msg1 = '';
+    $msg2 = '';
+    $msg3 = '';
+
+    $header = "MIME-Version: 1.0\r\n";
+    $header .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+    $header .= "\r\n";
+
+
+
+
+    $msg1 .= "--$boundary\r\n";
+    $msg1 .= "Content-Type: text/html;\r\n\tcharset=\"utf-8\"\r\n";
+    $msg1 .= "Content-Transfer-Encoding: 8bit \r\n";
+    $msg1 .= "\r\n\r\n" ;
+    $msg1 .= html_entity_decode($mailbody)."\r\n";
+    $msg1 .= "\r\n\r\n";
+    $msg3 .= "--$boundary--\r\n";
+
+
+
+    if(isset($_POST['ai_upload_add'])){
+        foreach($_POST['ai_upload_add'] as $row){
+            $file2 = $row;
+            $file_arr = explode('|',$file2);
+            $file= $_SERVER['DOCUMENT_ROOT'].'/uploads/files/'.$file_arr[0].'/'.$file_arr[1];
+
+            $filename=$file_arr[1];
+            $ouv=fopen ("$file", "rb");$lir=fread ($ouv, filesize ("$file"));fclose
+            ($ouv);
+            $attachment = chunk_split(base64_encode($lir));
+
+            $msg2 .= "--$boundary\r\n";
+            $msg2 .= "Content-Transfer-Encoding: base64\r\n";
+            $msg2 .= "Content-Disposition: attachment; filename=\"$filename\"\r\n";
+            $msg2 .= "\r\n";
+            $msg2 .= $attachment . "\r\n";
+            $msg2 .= "\r\n\r\n";
+        }
+    }
+
+
+    //imap_append($stream,"{galaxy.apogeehost.com}INBOX.Sent","From: ".$maildata['email']."\r\n"."To: samsujj@gmail.com\r\n"."Subject: This is the subject\r\n"."$header\r\n"."$msg1\r\n"."$msg2\r\n"."$msg3\r\n");
+
+
+    $toaddr = $_POST['toaddr'];
+    $subject = $_POST['subject'];
+    $pmailbody = $mailbody;
 
     if(isset($_POST['ai_upload_add'])){
 
@@ -63,6 +154,7 @@ if(util_is_POST()) {
             $mailbody .= '<a href="http://mars.apogeehost.com/~nexmed/uploads/files/'.$file_arr[0].'/'.$file_arr[1].'">'.$file_arr[1].'</a><br>';
         }
     }
+
 
     $email_name = 'imapsent';
     $send_to = $_POST['toaddr'];
@@ -76,34 +168,39 @@ if(util_is_POST()) {
         'title' => $email_name
     );
 
-
-    $sys_email = new C_system_emails($email_name);
-
-    $sys_email->set_from($maildata['email']);
-
-    $sys_email->encode_vars=false;
-    $sys_email->set_vars_array(array());
-    $sys_email->set_defaults_array($default_vars);
-
-    if($sys_email->send($send_to)){
-
-        imap_append($stream, "{galaxy.apogeehost.com}INBOX.Sent"
-            , "From:  ".$maildata['email']." \r\n"
-            . "To: ".$send_to."\r\n"
-            . "Subject: ".$_POST['subject']."\r\n"
-            ."\r\n"
-            ." $mailbody \r\n"
-        );
+    if($_POST['subtype'] == 'drafts'){
+        imap_append($stream, "{galaxy.apogeehost.com}INBOX.Drafts"
+            , "From: ".$maildata['email']."\r\n"."To: ".$send_to."\r\n"."Subject: ".$_POST['subject']."\r\n"."$header\r\n"."$msg1\r\n"."$msg2\r\n"."$msg3\r\n");
         imap_close ($stream);
+        util_redirect('imapinbox');
+    }elseif ($_POST['subtype'] == 'send'){
+        $sys_email = new C_system_emails($email_name);
+
+        $sys_email->set_from($maildata['email']);
+        $sys_email->set_from_name($maildata['name']);
+
+        $sys_email->encode_vars=false;
+        $sys_email->set_vars_array(array());
+        $sys_email->set_defaults_array($default_vars);
+
+        if($sys_email->send($send_to)){
+
+            imap_append($stream, "{galaxy.apogeehost.com}INBOX.Sent"
+                , "From: ".$maildata['email']."\r\n"."To: ".$send_to."\r\n"."Subject: ".$_POST['subject']."\r\n"."$header\r\n"."$msg1\r\n"."$msg2\r\n"."$msg3\r\n");
+            imap_close ($stream);
 
 
+            util_redirect('imapinbox');
+        }
+
+        if($sys_email->has_errors())
+        {
+            print_r($sys_email->get_errors());
+        }
+    }else{
         util_redirect('imapinbox');
     }
 
-    if($sys_email->has_errors())
-    {
-        print_r($sys_email->get_errors());
-    }
 }
 
 
@@ -115,6 +212,11 @@ $emails = $imap->getMessages();
 $imap->selectFolder('INBOX.Sent');
 $overallMessages = $imap->countMessages();
 
+$imap->selectFolder('INBOX.Trash');
+$trashcount = $imap->countMessages();
+
+$imap->selectFolder('INBOX.Drafts');
+$draftscount = $imap->countMessages();
 
 $AI->skin->css('includes/plugins/imap/style.css');
 
@@ -146,11 +248,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                             <ul class="nav nav-pills nav-stacked">
                                 <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
-                                <!--<li><a href="#"><span class="glyphicon glyphicon-star"></span> Starred <span class="label label-yellow pull-right">12</span></a></li>
-                                <li><a href="#"><span class="glyphicon glyphicon-bookmark"></span> Important</a></li>-->
+                                <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
                                 <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
-                                <!--<li><a href="#"><span class="glyphicon glyphicon-pencil"></span> Drafts</a></li>
-                                <li><a href="#">More <span class="glyphicon glyphicon-chevron-down"></span> </a></li>-->
+                                <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
                             </ul>
                         </div>
                         <!-- /.box-body -->
@@ -167,16 +267,16 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         <form name="landing_page" id="landing_page_chk" action="<?=$_SERVER['REQUEST_URI']?>" method="post">
                         <div class="box-body">
                             <div class="form-group">
-                                <input name="toaddr" class="form-control" placeholder="Message to:">
+                                <input name="toaddr" class="form-control" placeholder="Message to:" style="padding:0;" value="<?php echo $toaddr;?>">
                             </div>
                             <div class="form-group">
-                                <input name="subject" class="form-control" placeholder="Message subject:">
+                                <input name="subject" class="form-control" placeholder="Message subject:" style="padding:0;" value="<?php echo $subject;?>">
                             </div>
                             <div class="form-group">
-                                <!---<textarea name="body" id="compose-textarea" class="form-control">It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like</textarea>-->
+                                <!--<textarea name="body[0]" id="compose-textarea" class="form-control">It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like</textarea>-->
 
 
-                                <?php echo $AI->get_dynamic_area(  'body',  'name', $AI->get_lang(),true,  true, '100%',  '300',  true);?>
+                                <?php echo $AI->get_dynamic_area(  'body',  'name', $AI->get_lang(),true,  true, '100%',  '300',  true );?>
 
                             </div>
                             <?php
@@ -191,12 +291,12 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         <!-- /.box-body -->
                         <div class="box-footer">
                             <div class="pull-left">
-                                <button type="submit" class="btn btnsend">Send</button>
-                                <button type="button" class="btn btndraft">Draft</button>
-                                <button type="reset" class="btn btndiscard">Discard</button>
+                                <button type="submit" name="subtype" class="btn btnsend" value="send">Send</button>
+                                <button type="submit" name="subtype" class="btn btndraft" value="drafts">Draft</button>
+                                <!--<button type="reset" class="btn btndiscard">Discard</button>-->
                             </div>
                         </form>
-                            <div class="pull-right">
+                            <!--<div class="pull-right">
                                 <div class="form-group">
                                     <div class="btn btn-default btn-file">
                                         <span class="glyphicon glyphicon-paperclip"></span>
@@ -211,7 +311,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                         <input type="file" name="attachment">
                                     </div>
                                 </div>
-                            </div>
+                            </div>-->
                         </div>
                         <!-- /.box-footer -->
                     </div>

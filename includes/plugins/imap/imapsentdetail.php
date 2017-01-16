@@ -15,12 +15,24 @@ use SSilence\ImapClient\ImapClientException;
 use SSilence\ImapClient\ImapConnect;
 use SSilence\ImapClient\ImapClient as Imap;
 
+global $AI;
 
+$cururl = 'imapsentdetail?id='.$_GET['id'];
+
+$userid = $AI->user->userID;
+$maildata = array('email'=>'dev007@nexmedsolutions.com','password'=>'P@ss0987');
+
+$data = $AI->db->GetAll("SELECT * FROM user_mails WHERE userID = " . (int) $userid);
+
+if(isset($data[0])){
+    $password = base64_decode(base64_decode($data[0]['password']));
+    $maildata =  array('email'=>$data[0]['email'],'password'=>$password);
+}
 
 
 $mailbox = 'galaxy.apogeehost.com';
-$username = 'dev007@nexmedsolutions.com';
-$password = 'P@ss0987';
+$username = @$maildata['email'];
+$password = @$maildata['password'];
 $encryption = Imap::ENCRYPT_TLS; // or ImapClient::ENCRYPT_SSL or ImapClient::ENCRYPT_TLS or null
 
 // open connection
@@ -53,83 +65,141 @@ try{
     die();
 }
 
-// get all folders as array of strings
-//$folders = $imap->getFolders();
-//foreach($folders as $folder)
-//{
-//    print_r($folder);
-//
-//}
 $imap->selectFolder('INBOX');
-
-// count messages in current folder
-$overallMessages = $imap->countMessages();
-$unreadMessages = $imap->countUnreadMessages();
 $emails = $imap->getMessages();
-//echo "<br/>";
-//var_dump($emails);
-foreach ($emails as $key=>$email){
 
-    /*print_r($key);
-    echo "<br/>";
-    print_r($email);
-    echo "===============";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";
-    echo "<br/>";*/
+$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
+$uid = imap_uid($stream,$_GET['id']);
 
-    //echo "id==".$email['id'];
-    //echo "from==".$email['from'];
-    //echo "<br/>";
-    $messageheader=$imap->getMessageHeader($email['id']);
-    /* $messageheader=$imap->getMessageHeader($email['id']);
-     print_r($messageheader->from[0]->mailbox);
-     print_r($messageheader->from[0]->host);
-     echo "<pre>";
-     print_r($messageheader);
-     echo "<br/>";
-     echo "</pre>";
-     echo "<br/>";
-     foreach ($email as $k=>$content){
-         var_dump($content);
-         echo "<br/>";
-         var_dump($k);
-         echo "<br/>";
-         echo "<br/>";
-         echo "<br/>";
-
-     }
-     echo "<br/>";
-     echo "<br/>";
-     echo "<br/>";
-     echo "<br/>";*/
-}
-
-//print_r($messageheader);
-//echo "<br/>";
-//print_r($msgbody);
-/*echo "<pre>";
-print_r($msgbody);
-//print_r($messageheader->from[0]->host);
-echo "</pre>";*/
 $imap->selectFolder('INBOX.Sent');
-$messageheader=$imap->getMessageHeader(@$_GET['id']);
-/*echo "<pre>";
-print_r($messageheader);
-//print_r($messageheader->from[0]->host);
-echo "</pre>";*/
-$msgbody=$imap->getBody(@$_GET['id']);
-/*echo "<pre>";
-print_r(imap_base64($msgbody['body']));
-echo "</pre>";
-echo*/
+$messageheader=$imap->getMessageHeader($uid);
+
+$msgbody=$imap->getBody($uid);
+
 $pos = strpos($msgbody['body'], 'base64');
 $msgbody['body']=substr($msgbody['body'],$pos+6);
-
-// count messages in current folder
 $overallMessages = $imap->countMessages();
+
+$imap->selectFolder('INBOX.Trash');
+$trashcount = $imap->countMessages();
+
+$imap->selectFolder('INBOX.Drafts');
+$draftscount = $imap->countMessages();
+
+
+
+
+$structure = imap_fetchstructure($stream, @$_GET['id']);
+
+$j=0;
+$attachs = array();
+
+if(isset($structure->parts) && count($structure->parts)) {
+    for ($i = 0; $i < count($structure->parts); $i++) {
+        if (isset($structure->parts[$i]->disposition) && strtoupper($structure->parts[$i]->disposition) == 'ATTACHMENT') {
+
+            $attachs[$j] = array(
+                'is_attachment' => false,
+                'filename' => '',
+                'name' => '',
+                'attachment' => '',
+                'size'=>0);
+
+            if($structure->parts[$i]->bytes) {
+                $attachs[$j]['size'] = number_format($structure->parts[$i]->bytes/1024,2);
+            }
+
+            if($structure->parts[$i]->ifdparameters) {
+                foreach($structure->parts[$i]->dparameters as $object) {
+                    if(strtolower($object->attribute) == 'filename') {
+                        $attachs[$j]['is_attachment'] = true;
+                        $attachs[$j]['filename'] = $object->value;
+                    }
+                }
+            }
+
+            if($structure->parts[$i]->ifparameters) {
+                foreach($structure->parts[$i]->parameters as $object) {
+                    if(strtolower($object->attribute) == 'name') {
+                        $attachs[$j]['is_attachment'] = true;
+                        $attachs[$j]['name'] = $object->value;
+                    }
+                }
+            }
+
+            if($attachs[$j]['is_attachment']) {
+                $attachs[$j]['attachment'] = imap_fetchbody($stream, @$_GET['id'], $i+1);
+                if($structure->parts[$i]->encoding == 3) { // 3 = BASE64
+                    $attachs[$j]['attachment'] = base64_decode($attachs[$j]['attachment']);
+                }elseif($structure->parts[$i]->encoding == 4) { // 4 = QUOTED-PRINTABLE
+                    $attachs[$j]['attachment'] = quoted_printable_decode($attachs[$j]['attachment']);
+                }
+            }
+
+            $j++;
+        }
+    }
+}
+
+if(isset($_GET['mode'])){
+    if($_GET['mode'] == 'download' && isset($_GET['attach_id'])){
+        if(isset($attachs[$_GET['attach_id']])){
+            $filename = $_SERVER['DOCUMENT_ROOT'].'/uploads/email_attach/'.rand().'_'.time().$attachs[$_GET['attach_id']]['name'];
+            file_put_contents($filename, $attachs[$_GET['attach_id']]['attachment']);
+
+            if(file_exists($filename)) {
+                header('Content-Description: File Transfer');
+                header('Content-Type: application/octet-stream');
+                header('Content-Disposition: attachment; filename='.basename($filename));
+                header('Content-Transfer-Encoding: binary');
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+                header('Pragma: public');
+                header('Content-Length: ' . filesize($filename));
+                ob_clean();
+                flush();
+                readfile($filename);
+
+                @unlink($filename);
+
+                exit;
+            }
+        }
+    }elseif ($_GET['mode'] == 'delete'){
+        if(isset($_GET['id'])){
+                imap_mail_move($stream, $_GET['id'], 'INBOX.Trash');
+                imap_expunge($stream);
+        }
+        util_redirect('imapinbox');
+    }
+}
+
+
+$attchmentstr='';
+
+
+if(count($attachs)){
+
+    $attchmentstr .= '<ul class="mailbox-attachments clearfix hide">';
+
+    foreach($attachs as $key=>$row){
+        $attchmentstr .='<li>
+                            <span class="mailbox-attachment-icon">
+                                                          <i class="fa fa-file-pdf-o"></i></span>
+
+                                        <div class="mailbox-attachment-info">
+                                            <a href="'.$cururl.'&mode=download&attach_id='.$key.'" class="mailbox-attachment-name"><span>Attachment</span> <i class="glyphicon glyphicon-paperclip"></i> '.$row['filename'].'</a>
+                                            <span class="mailbox-attachment-size">
+                                                             '.$row['size'].' KB
+                                                              <a href="'.$cururl.'&mode=download&attach_id='.$key.'" class="btn btn-default btn-xs pull-right"><i class="glyphicon glyphicon-cloud-download"></i></a>
+                                                            </span>
+                                        </div>
+                                    </li>';
+    }
+
+    $attchmentstr .= '</ul>';
+}
+
 
 global $AI;
 $AI->skin->css('includes/plugins/imap/style.css');
@@ -156,12 +226,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
-                                    <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-star"></span> Starred <span class="label label-yellow pull-right">12</span></a></li>
-                                    <li><a href="#"><span class="glyphicon glyphicon-bookmark"></span> Important</a></li>-->
-                                    <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
-                                    <!--<li><a href="#"><span class="glyphicon glyphicon-pencil"></span> Drafts</a></li>
-                                    <li><a href="#">More <span class="glyphicon glyphicon-chevron-down"></span> </a></li>-->
+                                    <li><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
+                                    <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
+                                    <li class="active"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
+                                    <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
                                 </ul>
                             </div>
                             <!-- /.box-body -->
@@ -173,7 +241,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         <div class="box box-primary readmailinboxwrapper">
                             <div class="box-header with-border">
                                 <div class="box-tools pull-right">
-                                    <span class="mailbox-read-time pull-right">January 17, 2014 at 04:45 AM</span>
+                                    <span class="mailbox-read-time pull-right"><?php echo date('F d,Y h:i A',$messageheader->udate);?></span>
                                 </div>
                             </div>
                             <!-- /.box-header -->
@@ -183,7 +251,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                         <button type="button" class="btn replybtn"><i class="glyphicon glyphicon-arrow-left"></i> Forward</button>
 
                                         <button type="button" class="btn forwardbtn"><i class="glyphicon glyphicon-arrow-right"></i> Forward</button>
-                                        <button type="button" class="btn trashbtn"><i class="glyphicon glyphicon-trash"></i> Trash</button>
+                                        <a type="button" class="btn trashbtn" href="<?php echo $cururl?>&mode=delete"><i class="glyphicon glyphicon-trash"></i> Trash</a>
                                     </div>
                                     <!-- /.btn-group -->
                                 </div>
@@ -195,59 +263,16 @@ $AI->skin->css('includes/plugins/imap/style.css');
 
                                 <!-- /.mailbox-controls -->
                                 <div class="mailbox-read-message">
-                                    <?php echo $imap->convertToUtf8($msgbody['body']); ?>
+                                    <?php
+                                    echo $imap->convertToUtf8($msgbody['body']);
+                                    ?>
                                 </div>
                                 <!-- /.mailbox-read-message -->
                             </div>
                             <!-- /.box-body -->
                             <div class="box-footer">
-                                <!--<ul class="mailbox-attachments clearfix hide">
-                                    <li>
-                                                      <span class="mailbox-attachment-icon">
-                                                          <i class="fa fa-file-pdf-o"></i></span>
+                                <?php echo $attchmentstr; ?>
 
-                                        <div class="mailbox-attachment-info">
-                                            <a href="#" class="mailbox-attachment-name"><span>Attachment</span> <i class="glyphicon glyphicon-paperclip"></i> Oct2016-report.pdf</a>
-                                            <span class="mailbox-attachment-size">
-                                                              1,245 KB
-                                                              <a href="#" class="btn btn-default btn-xs pull-right"><i class="glyphicon glyphicon-cloud-download"></i></a>
-                                                            </span>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <span class="mailbox-attachment-icon"><i class="fa fa-file-word-o"></i></span>
-
-                                        <div class="mailbox-attachment-info">
-                                            <a href="#" class="mailbox-attachment-name"><span>Attachment</span> <i class="glyphicon glyphicon-paperclip"></i> Test description.docx</a>
-                                            <span class="mailbox-attachment-size">
-                                                              1,245 KB
-                                                              <a href="#" class="btn btn-default btn-xs pull-right"><i class="glyphicon glyphicon-cloud-download"></i></a>
-                                                            </span>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <span class="mailbox-attachment-icon has-img"><img src="../../../images/adminlogo.png" alt="Attachment"></span>
-
-                                        <div class="mailbox-attachment-info">
-                                            <a href="#" class="mailbox-attachment-name"><span>Attachment</span><i class="glyphicon glyphicon-picture"></i> photo1.png</a>
-                                            <span class="mailbox-attachment-size">
-                                                              2.67 MB
-                                                              <a href="#" class="btn btn-default btn-xs pull-right"><i class="glyphicon glyphicon-cloud-download"></i></a>
-                                                            </span>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <span class="mailbox-attachment-icon has-img"><img src="../../../images/adminlogo.png" alt="Attachment"></span>
-
-                                        <div class="mailbox-attachment-info">
-                                            <a href="#" class="mailbox-attachment-name"><span>Attachment</span><i class="glyphicon glyphicon-picture"></i> photo2.png</a>
-                                            <span class="mailbox-attachment-size">
-                                                              1.9 MB
-                                                              <a href="#" class="btn btn-default btn-xs pull-right"><i class="glyphicon glyphicon-cloud-download"></i></a>
-                                                            </span>
-                                        </div>
-                                    </li>
-                                </ul>-->
                             </div>
                         </div>
                         <!-- /. box -->
