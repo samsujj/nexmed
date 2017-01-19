@@ -23,6 +23,7 @@ $keyword = '';
 
 global $AI;
 
+
 $userid = $AI->user->userID;
 $maildata = array('email'=>'dev007@nexmedsolutions.com','password'=>'P@ss0987');
 
@@ -173,7 +174,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>INBOX</span> Inbox</h2>
+            <h2><span>INBOX</span></h2>
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -186,10 +187,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="box-header with-border">
                                 <h3 class="box-title">Folders</h3>
 
-                                <div class="box-tools">
-                                    <button type="button" class="btn btn-box-tool" class="navbar-toggle" data-toggle="collapse"  data-target="#navbar-collapse-1"><span class="glyphicon glyphicon-minus"></span>
+                                <!--<div class="box-tools">
+                                    <button type="button" class="btn btn-box-tool hide" class="navbar-toggle" data-toggle="collapse"  data-target="#navbar-collapse-1"><span class="glyphicon glyphicon-minus"></span>
                                     </button>
-                                </div>
+                                </div>-->
                             </div>
                             <div class="box-body no-padding collapse navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
@@ -271,8 +272,8 @@ $AI->skin->css('includes/plugins/imap/style.css');
 
                                             <tr class='clickable-row'>
                                                 <td><input type="checkbox" class="mailchk" value="<?php echo $email['id'] ; ?>"></td>
-                                                <td class="mailbox-star"><a href="#"><span
-                                                            class="glyphicon glyphicon-star text-yellow"></span></a>
+                                                <td class="mailbox-star"><!--<a href="#"><span
+                                                            class="glyphicon glyphicon-star text-yellow"></span></a>-->
                                                 </td>
                                                 <td class="mailbox-name"><a href="/~nexmed/imapdetail?id=<?php echo $email['id'] ; ?>"><b><?php echo $email['from'] ; ?></b></a>
                                                 </td>

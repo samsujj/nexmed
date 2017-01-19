@@ -4,6 +4,7 @@
 	//DB Table: share_links, Unique ID: share_links, PK Field: id
 
 	require_once( ai_cascadepath( 'includes/core/classes/tableedit_base.php' ) );
+require_once(ai_cascadepath('includes/plugins/pop3/api.php'));
 
 	class C_te_user_mails extends C_tableedit_base
 	{
@@ -24,6 +25,7 @@
 		//(configure) Draw Code
 		var $view_include_file = 'includes/modules/user_mails/includes/draw.user_mails.view.php';
 		var $edit_include_file = 'includes/modules/user_mails/includes/draw.user_mails.edit.php';
+		var $cngpass_include_file = 'includes/modules/user_mails/includes/draw.user_mails.cngpass.php';
 		var $table_include_file = 'includes/modules/user_mails/includes/draw.user_mails.table.php';
 		var $qsearch_include_file = 'includes/modules/user_mails/includes/draw.user_mails.qsearch.php';
 		var $asearch_include_file = 'includes/modules/user_mails/includes/draw.user_mails.asearch.php';
@@ -165,6 +167,14 @@
 
 			switch( $fieldname )
 			{
+				case 'userID':
+				case 'email': {
+					echo '<input id="'.$fieldname.'" name="'.$fieldname.'" size="100" maxlength="255" value="'.$value.'" type="text" readonly="readonly">';
+				} break;
+				case 'password': {
+					echo '<input id="'.$fieldname.'" name="'.$fieldname.'" value="'.base64_decode(base64_decode($value)).'" type="text" readonly="readonly">';
+				} break;
+
 				default: { $this->draw_input_field_by_desc( $fieldname, $value, $mode, $this->desc[ $fieldname ], $element_id ); } break;
 			}
 
@@ -175,6 +185,7 @@
 		 */
 		function draw_value_field( $fieldname, $value, $key, $mode )
 		{
+			global $AI;
 			//IF THEY CAN "INLINE-EDIT" THEN SET IT UP
 			if( $this->perm->get('ajax') && ( $this->inline_edit_db_field[ $fieldname ] == $mode || $this->inline_edit_db_field[ $fieldname ] == 'all' ) )
 			{
@@ -197,6 +208,16 @@
 						}else{
 							echo 'Inactive';
 						}
+					} break;
+
+					case 'userID': {
+						$name = '';
+						$data = $AI->db->GetAll("SELECT * FROM users WHERE userID = " . (int) $value);
+						if(isset($data[0])){
+							$name =$data[0]['first_name']." ".$data[0]['last_name'];
+						}
+						echo $name;
+
 					} break;
 
 					default: { echo  htmlspecialchars( $value ). '&nbsp;'; } break;
@@ -247,6 +268,76 @@
 				return array();
 			}
 
+		}
+
+		function te_mode_cngpass(){
+			global $AI;
+
+			if( $this->te_class == $this->unique_id && $_SERVER['REQUEST_METHOD'] == 'POST' && $this->is_valid_key( $this->te_key ) )
+			{
+
+				$cpanelusr = 'nexmed';
+				$cpanelpass = 'l0PS8AyMm0aB';
+				$xmlapi = new xmlapi('galaxy.apogeehost.com');
+				$xmlapi->set_port( 2083 );
+				$xmlapi->password_auth($cpanelusr,$cpanelpass);
+				$xmlapi->set_debug(0);
+
+
+
+				$err = $AI->user->validate_password($_POST['newpassword']);
+
+				if(empty($_POST['oldpassword'])){
+					$this->write_error_msg = 'Please enter old password';
+				}else if($_POST['oldpassword'] != base64_decode(base64_decode($_POST['password']))){
+					$this->write_error_msg = 'Old password does not match';
+				}else if(empty($_POST['newpassword'])){
+					$this->write_error_msg = 'Please enter new password';
+				}else if(!$err){
+					$this->write_error_msg = $err;
+				}else if($_POST['confpassword'] != $_POST['newpassword']){
+					$this->write_error_msg = 'Confirm password does not match';
+				}else{
+
+
+					$arr = explode('@',$_POST['email']);
+
+					$result = $xmlapi->api1_query($cpanelusr, 'Email', 'passwdpop', array(  $arr[0], $_POST['newpassword'],"nexmedsolutions.com"));
+					if(isset($result->error)){
+						$this->write_error_msg = strip_tags($result->data->result);
+					}else{
+						$sql_str = "UPDATE " . $this->_dbTableName . " SET password = '".base64_encode(base64_encode($_POST['newpassword']))."' WHERE " . $this->_keyFieldName . " = " . (int)db_in($this->te_key);
+						$rs = db_query( $sql_str );
+
+						$url = $this->te_redirect_url('default');
+						util_redirect( $url );
+					}
+
+
+				}
+
+			}
+			elseif( $this->is_valid_key( $this->te_key ) )
+			{
+				if( !$this->select( $this->te_key ) )
+				{
+					$this->draw_MissingDataError();
+				}
+			}
+
+			$this->get_relative_paging_info();
+			$this->draw_unique_div_open();
+			$this->draw_cngpass( $this->url( 'te_mode=cngpass&te_key=' . $this->te_key . '&te_row=' . (int) $this->_row_i) );
+			$this->draw_unique_div_close();
+		}
+
+		function draw_cngpass($postURL)
+		{
+			global $AI;
+
+			$this->include_plugin_css();
+			require( ai_cascadepath( $this->cngpass_include_file ) );
+			echo '<div class="te_edit_stats" data-row-i="' . (int) $this->_row_i . '"></div>';
 		}
 
 

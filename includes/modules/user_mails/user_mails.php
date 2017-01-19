@@ -7,7 +7,16 @@
 
 	global $AI;
 
-	$te_user_mails = new C_te_user_mails();
+
+
+	$dbWhere = '';
+	if($AI->user->account_type == 'Website Developer' || $AI->user->account_type == 'Administrator'){
+		$dbWhere = '';
+	}else{
+		$dbWhere = 'userID ='.$AI->user->userID;
+	}
+
+	$te_user_mails = new C_te_user_mails($dbWhere);
 
 	$te_user_mails->_obFieldDefault = 'id';
 	$te_user_mails->_obDirDefault = 'DESC';
@@ -18,5 +27,13 @@
 
 	$te_user_mails->select($te_user_mails->te_key);
 
-	$te_user_mails->run_TableEdit();
+	//$te_user_mails->run_TableEdit();
+
+	if($te_user_mails->te_mode == 'cngpass'){
+		$te_user_mails->te_mode_cngpass();
+	}else{
+		$te_user_mails->run_TableEdit();
+	}
+
+
 ?>

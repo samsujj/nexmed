@@ -59,6 +59,8 @@ if(isset($_GET['type']) && isset($_GET['id'])){
 
         $imap->selectFolder('INBOX');
         $messageheader=$imap->getMessageHeader($uid);
+        $pmailbody=$imap->getBody($uid);
+        $pmailbody=trim($pmailbody['body']);
 
 
         if($_GET['type'] == 'replyIn'){
@@ -83,6 +85,56 @@ if(isset($_GET['type']) && isset($_GET['id'])){
         }
 
     }
+    if($_GET['type'] == 'replySent' || $_GET['type'] == 'forwardSent'){
+        $mailid = $_GET['id'];
+        $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
+        $uid = imap_uid($stream,$_GET['id']);
+
+        $imap->selectFolder('INBOX.Sent');
+        $messageheader=$imap->getMessageHeader($uid);
+        $pmailbody=$imap->getBody($uid);
+        $pmailbody=trim($pmailbody['body']);
+
+
+        if($_GET['type'] == 'replySent'){
+            if(isset($messageheader->reply_to)){
+                $reply = $messageheader->reply_to;
+                if(isset($reply[0])){
+                    $toaddr = $reply[0]->mailbox."@".$reply[0]->host;
+                }
+            }
+
+            $subject = $messageheader->subject;
+            if(!empty($subject)){
+                if(substr($subject, 0, 3) != 'Re:'){
+                    $subject = 'Re: '.$subject;
+                }
+            }
+        }
+
+        if($_GET['type'] == 'forwardSent'){
+            $subject = $messageheader->subject;
+            $subject = 'Fwd: '.$subject;
+        }
+
+    }
+
+    if($_GET['type'] == 'draft'){
+        $mailid = $_GET['id'];
+
+        $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Drafts", $username, $password);
+        $uid = imap_uid($stream,$_GET['id']);
+
+        $imap->selectFolder('INBOX.Drafts');
+        $messageheader=$imap->getMessageHeader($uid);
+        $pmailbody=$imap->getBody($uid);
+        $pmailbody=trim($pmailbody['body']);
+
+        $subject = $messageheader->subject;
+        $toaddr = $messageheader->toaddress;
+
+    }
+
 }
 
 
@@ -91,7 +143,17 @@ $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $p
 
 if(util_is_POST()) {
 
-    $mailbody = $_POST['body'][0];
+    $mailbody = $_POST['body'];
+    $targetarr=array('"\"');
+    $replacearr=array('"');
+    //$mailbody=str_replace('"\"','"',$mailbody);
+   // $mailbody = htmlentities($mailbody);
+    $mailbody = stripslashes($mailbody);
+
+
+
+  //  echo ($mailbody);
+   // exit;
 
     $boundary = "------=".md5(uniqid(rand()));
 
@@ -219,10 +281,42 @@ $imap->selectFolder('INBOX.Drafts');
 $draftscount = $imap->countMessages();
 
 $AI->skin->css('includes/plugins/imap/style.css');
+//$AI->skin->js('includes/plugins/tinymce/tinymce.min.js');
 
 ?>
 
+<script src="https://cdn.tinymce.com/4/tinymce.min.js"></script>
 
+<script>
+    function getval() {
+
+        alert(tinyMCE.get('compose-textarea').getContent());
+
+    }
+
+
+    $(function(){
+        $('#compose-textarea').html('<?php echo $pmailbody;?>');
+
+        tinymce.init({
+            selector: 'textarea#compose-textarea',
+            height: 500,
+            //width:100%,
+            menubar: false,
+            plugins: [
+                'advlist autolink lists link image charmap print preview hr anchor pagebreak',
+                'searchreplace wordcount visualblocks visualchars code fullscreen',
+                'insertdatetime media nonbreaking save table contextmenu directionality',
+                'emoticons template paste textcolor colorpicker textpattern imagetools code toc'
+            ],
+            toolbar: 'undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | forecolor backcolor link | code'
+        });
+
+        //tinyMCE.activeEditor.setContent(xcxz);
+        //tinyMCE.get('compose-textarea')..setContent('<strong>Some contents</strong>');
+    })
+
+</script>
 
 
 <div class="mailinbox">
@@ -240,10 +334,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                     <div class="box box-solid">
                         <div class="box-header with-border">
                             <h3 class="box-title">Folders</h3>
-                            <div class="box-tools">
+                            <!--<div class="box-tools">
                                 <button type="button" class="btn btn-box-tool" class="navbar-toggle" data-toggle="collapse"  data-target="#navbar-collapse-1"><span class="glyphicon glyphicon-minus"></span>
                                 </button>
-                            </div>
+                            </div>-->
                         </div>
                         <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                             <ul class="nav nav-pills nav-stacked">
@@ -276,7 +370,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                 <!--<textarea name="body[0]" id="compose-textarea" class="form-control">It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like</textarea>-->
 
 
-                                <?php echo $AI->get_dynamic_area(  'body',  'name', $AI->get_lang(),true,  true, '100%',  '300',  true );?>
+                                <textarea name="body" id="compose-textarea" class="form-control"></textarea>
+
+                                <?php //echo $AI->get_dynamic_area(  'body555',  'name', $AI->get_lang(),false,  true, '100%',  '300',  true );?>
 
                             </div>
                             <?php
@@ -293,7 +389,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="pull-left">
                                 <button type="submit" name="subtype" class="btn btnsend" value="send">Send</button>
                                 <button type="submit" name="subtype" class="btn btndraft" value="drafts">Draft</button>
-                                <!--<button type="reset" class="btn btndiscard">Discard</button>-->
+                                <button type="reset" class="btn btndiscard" onclick="getval()">Discard</button>
                             </div>
                         </form>
                             <!--<div class="pull-right">

@@ -534,6 +534,7 @@ a {
     width: 41px !important;
     height: 41px !important;
     line-height: 41px !important;
+    position: absolute;
 }
 /*.mailinboxright .mailbox-controls .btn-default.btnwritemail{background-color: #ff4d3a!important; border:1px solid #ff2210!important; color:#fff !important; }*/
 

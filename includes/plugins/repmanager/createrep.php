@@ -91,10 +91,10 @@ if(util_is_POST()) {
         $se->set_from($send_from);
         $se->set_defaults_array($defaults);
         $se->set_vars_array($vars);
-        if(!$se->send($send_to))
+        /*if(!$se->send($send_to))
         {
             //echo 47;exit;
-        }
+        }*/
 
 
         $cpanelusr = 'nexmed';
@@ -104,7 +104,7 @@ if(util_is_POST()) {
         $xmlapi->password_auth($cpanelusr,$cpanelpass);
         $xmlapi->set_debug(0); //output actions in the error log 1 for true and 0 false
         $result = $xmlapi->api1_query($cpanelusr, 'Email', 'addpop', array($_POST['username'].'@nexmedsolutions.com',$_POST['password'],'unlimited','nexmedsolutions.com'));
-        $x=imap_mail('debasiskar007@gmail.com', 'test 23', 'test body', $_POST['username'].'@nexmedsolutions.com');
+       // $x=imap_mail('debasiskar007@gmail.com', 'test 23', 'test body', $_POST['username'].'@nexmedsolutions.com');
         //var_dump($x);
         //exit;
 

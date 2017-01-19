@@ -38,7 +38,7 @@ echo '<table class="te_main_table pixel_main_table" id="pixel_main_table">';
 
 
 echo "<tr>";
-echo "<th>User ID</th>";
+echo "<th>User</th>";
 echo "<th>Email</th>";
 echo "<th>Action</th>";
 echo "</tr>";
@@ -68,9 +68,14 @@ for ( $table_i = 0; $table_i < $this->_pgSize && $table_row; $table_i++ )
 		echo "</td>";
 		echo "<td align='center' class='addbtn'>";
 
-		echo '<button  class="icon_button_16 editbtn" onclick="document.location = \'' . h($this->url('te_mode=update&te_key=' . $table_row['id'])) . '&te_row=' . $this->_row_i.'\'; return false;">';
+		//echo '<button  class="icon_button_16 editbtn" onclick="document.location = \'' . h($this->url('te_mode=update&te_key=' . $table_row['id'])) . '&te_row=' . $this->_row_i.'\'; return false;">';
+		///echo '<img src="images/dynamic_edit.14.transparent.png">';
+		//echo '<span>Edit</span>';
+		//echo '</button>';
+
+		echo '<button  class="icon_button_16 editbtn" onclick="document.location = \'' . h($this->url('te_mode=cngpass&te_key=' . $table_row['id'])) . '&te_row=' . $this->_row_i.'\'; return false;">';
 		echo '<img src="images/dynamic_edit.14.transparent.png">';
-		echo '<span>Edit</span>';
+		echo '<span>Change Password</span>';
 		echo '</button>';
 
 

@@ -103,7 +103,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>INBOX</span> Inbox</h2>
+            <h2><span>SENTBOX</span></h2>
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -116,10 +116,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="box-header with-border">
                                 <h3 class="box-title">Folders</h3>
 
-                                <div class="box-tools">
+                                <!--<div class="box-tools">
                                     <button type="button" class="btn btn-box-tool" class="navbar-toggle" data-toggle="collapse"  data-target="#navbar-collapse-1"><span class="glyphicon glyphicon-minus"></span>
                                     </button>
-                                </div>
+                                </div>-->
                             </div>
                             <div class="box-body no-padding collapse navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
@@ -150,16 +150,16 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="box-body no-padding">
                                 <div class="mailbox-controls">
                                     <!-- Check all button -->
-                                    <button type="button" class="btn btn-default btn-sm btninputtype"><input type="checkbox"><span class="glyphicon glyphicon-vector-path-square"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default btn-sm btnwritemail"><span class="glyphicon glyphicon-plus"></span> write mail</button>
+                                    <!--<button type="button" class="btn btn-default btn-sm btninputtype"><input type="checkbox"><span class="glyphicon glyphicon-vector-path-square"></span>
+                                    </button>-->
+                                    <a type="button" class="btn btn-default btn-sm btnwritemail" href="imapcreate"><span class="glyphicon glyphicon-plus"></span> write mail</a>
                                     <div class="btn-group">
                                         <button type="button" class="btn btn-default btn-sm btndelete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
                                         <!---<button type="button" class="btn btn-default btn-sm"><i class="fa fa-reply"></i></button>
                                         <button type="button" class="btn btn-default btn-sm"><i class="fa fa-share"></i></button>--->
                                     </div>
                                     <!-- /.btn-group -->
-
+<!--
                                     <div class="pull-right">
                                         <button type="button" class="btn btn-default btn-sm btnrefresh"><span class="glyphicon glyphicon-refresh"></span></button>
                                         <button type="button" class="btn btn-default btn-sm btnall">All <span class="glyphicon glyphicon-triangle-bottom"></span></button>
@@ -168,7 +168,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                           <button type="button" class="btn btn-default btn-sm"><i class="fa fa-chevron-left"></i></button>
                                           <button type="button" class="btn btn-default btn-sm"><i class="fa fa-chevron-right"></i></button>
                                         </div>-->
-                                    </div>
+                                    <!--</div>-->
 
                                     <!-- /.btn-group -->
                                     <!-- /.pull-right -->
@@ -196,9 +196,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
 
                                             <tr>
                                                 <td><input type="checkbox"></td>
-                                                <td class="mailbox-star"><a href="javascript:void(0);"><span class="glyphicon glyphicon-star text-yellow"></span></a>
+                                                <td class="mailbox-star"><!--<a href="javascript:void(0);"><span class="glyphicon glyphicon-star text-yellow"></span></a>-->
                                                 </td>
-                                                <td class="mailbox-name"><a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><b><?php echo $email['from'] ; ?></b></a>
+                                                <td class="mailbox-name"><a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><b><?php echo $email['to'][0] ; ?></b></a>
                                                 </td>
                                                 <td class="mailbox-subject">
                                                    <!-- <b class="imptxt">important</b> -->

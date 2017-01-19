@@ -190,7 +190,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>Mail</span> Inbox</h2>
+            <h2><span>INBOX</span> Inbox</h2>
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -201,10 +201,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         <div class="box box-solid">
                             <div class="box-header with-border">
                                 <h3 class="box-title">Folders</h3>
-                                <div class="box-tools">
+                               <!-- <div class="box-tools">
                                     <button type="button" class="btn btn-box-tool" class="navbar-toggle" data-toggle="collapse"  data-target="#navbar-collapse-1"><span class="glyphicon glyphicon-minus"></span>
                                     </button>
-                                </div>
+                                </div>-->
                             </div>
                             <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
