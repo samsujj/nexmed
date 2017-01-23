@@ -67,6 +67,10 @@
 				Change Password
 			</legend>
 
+            <h5 class="newtextcon">
+			<p>*You can change the password of your email <strong><?php echo $this->db['email'];?></strong> from here!</p>
+			<p>*If you haven’t changed your password yet then you have to use your user registration password which was used at the time of your user upgradation.</p>
+            </h5>
 			<?php if( $this->write_error_msg != '' ){ ?><div class="error"><?php echo htmlspecialchars( $this->write_error_msg ); ?></div><?php }
 
 

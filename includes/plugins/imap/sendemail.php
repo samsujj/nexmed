@@ -17,29 +17,59 @@ $password = 'P@ss0987';
 global $AI;
 require_once( ai_cascadepath('includes/plugins/system_emails/class.system_emails.php') );
 $email_name = 'repsignup';
-$send_to = 'debasiskar007@gmail.com';
+
 $send_from = $username;
 
-$vars = array();
-$vars['uname'] = $username;
-$vars['pass'] = $username;
+$data = $AI->db->GetAll("SELECT * FROM users WHERE account_type = 'Representatives' ");
+echo "<pre>";
+//print_r(count($data));
+//print_r($data);
+$i=0;
+foreach ($data as $val) {
+    echo $val['username'];
+    echo "<br>";
+    //$emailid=explode('@',$val['email']);
+    echo $emailid=$val['email']."@nexmedsolutions.com";
+    echo "<br/>";
+    //$AI->db->query("update users set email= '$emailid' where userID= " . (int)$val['userID']);
+    $data = $AI->db->GetAll("SELECT * FROM user_mails WHERE userID = " . (int)$val['userID']);
 
-$defaults = array();
+    if (isset($data[0])) {
+        $password = base64_decode(base64_decode($data[0]['password']));
+
+        $maildata = array('email' => $data[0]['email'], 'pass' => $password);
+
+        echo "<br/>";
+        //echo $i++;
+        //echo "</pre>";
+//exit;
+
+
+        $vars = array();
+        $vars['email'] = $maildata['email'];
+        $vars['pass'] = $maildata['pass'];
+        //$vars = $maildata;
+
+
+        $defaults = array();
 //$defaults['email_subject'] = 'Default Email Subject';
 //$defaults['email_msg'] = 'Hello [[name]], this is the default content of your email.';
 
-$se = new C_system_emails($email_name);
-$se->set_from($send_from);
-$se->set_defaults_array($defaults);
-$se->set_vars_array($vars);
+        $se = new C_system_emails($email_name);
+//$se->set_from($send_from);
+        $send_to = $val['email'];
+        $se->set_defaults_array($defaults);
+        $se->set_vars_array($vars);
 //$headers[0]= 'From: ' . $send_from . "\r\n";
 //$headers[1]= "X-Sender: $send_from < ".$send_from." >\n";
-/*if(!$se->send($send_to,array('Reply-To', $username)))
-{
-    //echo 47;exit;
-}*/
+        $myheaders = array('Bcc' => 'debasiskar007@gmail.com');
+       // if (!$se->send($send_to,$myheaders)) {
+            //echo 47;exit;
+        //}
+    }
+}
 
-
+echo "</pre>";
 //require 'PHPMailerAutoload.php';
 /*require_once( ai_cascadepath('includes/plugins/imap/smtp.php') );
 require_once( ai_cascadepath('includes/plugins/imap/phpmailer.php') );

@@ -62,8 +62,15 @@ if(isset($_GET['type']) && isset($_GET['id'])){
         $pmailbody=$imap->getBody($uid);
         $pmailbody=trim($pmailbody['body']);
 
-
         if($_GET['type'] == 'replyIn'){
+
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress)){
+                $bodybefore = 'On '.date('Y-m-d H:i',$messageheader->udate).', '.$messageheader->fromaddress.' wrote:<br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
+
             if(isset($messageheader->reply_to)){
                 $reply = $messageheader->reply_to;
                 if(isset($reply[0])){
@@ -80,8 +87,21 @@ if(isset($_GET['type']) && isset($_GET['id'])){
         }
 
         if($_GET['type'] == 'forwardIn'){
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress) && isset($messageheader->toaddress) && isset($messageheader->subject)){
+                $bodybefore .= '-------- Original Message --------<br>';
+                $bodybefore .= 'Subject: '.$messageheader->subject.'<br>';
+                $bodybefore .= 'Date: '.date('Y-m-d H:i',$messageheader->udate).'<br>';
+                $bodybefore .= 'From: '.$messageheader->fromaddress.'<br>';
+                $bodybefore .= 'To: '.$messageheader->toaddress.'<br><br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
             $subject = $messageheader->subject;
             $subject = 'Fwd: '.$subject;
+
+
+
         }
 
     }
@@ -97,6 +117,13 @@ if(isset($_GET['type']) && isset($_GET['id'])){
 
 
         if($_GET['type'] == 'replySent'){
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress)){
+                $bodybefore = 'On '.date('Y-m-d H:i',$messageheader->udate).', '.$messageheader->fromaddress.' wrote:<br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
+
             if(isset($messageheader->reply_to)){
                 $reply = $messageheader->reply_to;
                 if(isset($reply[0])){
@@ -113,8 +140,71 @@ if(isset($_GET['type']) && isset($_GET['id'])){
         }
 
         if($_GET['type'] == 'forwardSent'){
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress) && isset($messageheader->toaddress) && isset($messageheader->subject)){
+                $bodybefore .= '-------- Original Message --------<br>';
+                $bodybefore .= 'Subject: '.$messageheader->subject.'<br>';
+                $bodybefore .= 'Date: '.date('Y-m-d H:i',$messageheader->udate).'<br>';
+                $bodybefore .= 'From: '.$messageheader->fromaddress.'<br>';
+                $bodybefore .= 'To: '.$messageheader->toaddress.'<br><br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
             $subject = $messageheader->subject;
             $subject = 'Fwd: '.$subject;
+        }
+
+    }
+    if($_GET['type'] == 'replyTr' || $_GET['type'] == 'forwardTr'){
+        $mailid = $_GET['id'];
+        $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Trash", $username, $password);
+        $uid = imap_uid($stream,$_GET['id']);
+
+        $imap->selectFolder('INBOX.Trash');
+        $messageheader=$imap->getMessageHeader($uid);
+        $pmailbody=$imap->getBody($uid);
+        $pmailbody=trim($pmailbody['body']);
+
+        if($_GET['type'] == 'replyTr'){
+
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress)){
+                $bodybefore = 'On '.date('Y-m-d H:i',$messageheader->udate).', '.$messageheader->fromaddress.' wrote:<br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
+
+            if(isset($messageheader->reply_to)){
+                $reply = $messageheader->reply_to;
+                if(isset($reply[0])){
+                    $toaddr = $reply[0]->mailbox."@".$reply[0]->host;
+                }
+            }
+
+            $subject = $messageheader->subject;
+            if(!empty($subject)){
+                if(substr($subject, 0, 3) != 'Re:'){
+                    $subject = 'Re: '.$subject;
+                }
+            }
+        }
+
+        if($_GET['type'] == 'forwardTr'){
+            $bodybefore = '';
+            if(isset($messageheader->udate) && isset($messageheader->fromaddress) && isset($messageheader->toaddress) && isset($messageheader->subject)){
+                $bodybefore .= '-------- Original Message --------<br>';
+                $bodybefore .= 'Subject: '.$messageheader->subject.'<br>';
+                $bodybefore .= 'Date: '.date('Y-m-d H:i',$messageheader->udate).'<br>';
+                $bodybefore .= 'From: '.$messageheader->fromaddress.'<br>';
+                $bodybefore .= 'To: '.$messageheader->toaddress.'<br><br>';
+            }
+
+            $pmailbody = $bodybefore.$pmailbody;
+            $subject = $messageheader->subject;
+            $subject = 'Fwd: '.$subject;
+
+
+
         }
 
     }
@@ -322,7 +412,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
     <div class="mailinboxheader">
-        <h2><span>Mail</span> Inbox</h2>
+        <div class="maillogodiv"></div>
+
+        <div class="clearfix"></div>
     </div>
     <div class="mailinboxwrapper">
         <!-- Main content -->
@@ -341,7 +433,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                         </div>
                         <div class="box-body no-padding navbar-collapse" id="navbar-collapse-1">
                             <ul class="nav nav-pills nav-stacked">
-                                <li class="active"><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
+                                <li><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
                                 <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
                                 <li><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
                                 <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
@@ -353,6 +445,11 @@ $AI->skin->css('includes/plugins/imap/style.css');
                 <!-- /mailleft.col -->
                 <!-- /mailright.col -->
                 <div class="col-md-10 col-sm-9 col-xs-12 mailinboxright">
+                    <div class="new_form_header">
+                    <h2><span>Mail</span> Inbox</h2>
+                        <div class="clearfix"></div>
+                    </div>
+
                     <div class="box box-primary writemailinboxwrapper">
                         <div class="box-header with-border">
                             <h3 class="box-title">New Message</h3>
@@ -389,7 +486,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="pull-left">
                                 <button type="submit" name="subtype" class="btn btnsend" value="send">Send</button>
                                 <button type="submit" name="subtype" class="btn btndraft" value="drafts">Draft</button>
-                                <button type="reset" class="btn btndiscard" onclick="getval()">Discard</button>
+                                <!--<button type="reset" class="btn btndiscard" onclick="getval()">Discard</button>-->
                             </div>
                         </form>
                             <!--<div class="pull-right">

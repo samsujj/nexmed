@@ -19,6 +19,22 @@ use SSilence\ImapClient\ImapClient as Imap;
 $searchmail = array();
 $keyword = '';
 
+
+$page = 1;
+$start = 1;
+$perpage = 3;
+$end = 3;
+
+if(isset($_GET['page']) && intval($_GET['page'])){
+    $page = intval($_GET['page']);
+    $start = (($page-1)*$perpage)+1;
+    $end = ($page*$perpage);
+}
+
+$nextpageurl = 'imapsentbox?page='.($page+1);
+$prevpageurl = 'imapsentbox?page='.($page-1);
+
+
 global $AI;
 
 $userid = $AI->user->userID;
@@ -32,8 +48,7 @@ if(isset($data[0])){
     $maildata =  array('email'=>$data[0]['email'],'password'=>$password);
 }
 
-$cururl= 'imapinbox';
-
+$cururl= 'imapsentbox';
 
 
 $mailbox = 'galaxy.apogeehost.com';
@@ -71,13 +86,74 @@ try{
     die();
 }
 
+
+$imap->selectFolder('INBOX.Sent');
+$emaillist = $imap->getMessages(true,$perpage,($page-1));
+$overallMessages = $imap->countMessages();
+$countMsg = $imap->countMessages();
+
+
 $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
 
 
-$emails = array();
-$emaillist = array();
-$overallMessages = 0;
-$trashcount = 0;
+if(isset($_GET['mode'])){
+    $nextpageurl = 'imapsentbox?mode='.$_GET['mode'].'&page='.($page+1);
+    $prevpageurl = 'imapsentbox?mode='.$_GET['mode'].'&page='.($page-1);
+
+
+    if($_GET['mode'] == 'delete'){
+        if(util_is_POST()) {
+            if(isset($_POST['mailids']) && count($_POST['mailids'])){
+                /*foreach ($_POST['mailids'] as $val){
+                    $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
+                    //imap_delete($stream, $val);
+                    imap_mail_move($stream, $val, 'INBOX.Trash');
+                }*/
+                imap_mail_move($stream, implode(',',$_POST['mailids']), 'INBOX.Trash');
+                imap_expunge($stream);
+            }
+        }
+        util_redirect($cururl);
+    }else if($_GET['mode'] == 'search'){
+
+
+
+        if(!empty($_POST['keyword'])){
+            $keyword = $_POST['keyword'];
+
+            $searcharr = array();
+
+            $typearr = array('SUBJECT','BCC','BODY','CC','SUBJECT','FROM','TEXT','TO');
+
+            foreach ($typearr as $row){
+                $res = imap_search($stream,$row.' "'.$keyword.'"');
+                if($res){
+                    $searcharr= array_merge($res,$searcharr);
+                }
+            }
+
+            $searchmail = array_unique($searcharr);
+
+            $countMsg = count($searchmail);
+
+            $emaillist = array();
+
+            if(count($searchmail)){
+                foreach ($searchmail as $val){
+                    $emaillist[] = $imap->getMessage($val);
+                }
+            }
+
+
+
+        }else{
+            util_redirect($cururl);
+        }
+    }else{
+        util_redirect($cururl);
+    }
+
+}
 
 
 $imap->selectFolder('INBOX');
@@ -86,24 +162,90 @@ $emails = $imap->getMessages();
 $imap->selectFolder('INBOX.Trash');
 $trashcount = $imap->countMessages();
 
-$imap->selectFolder('INBOX.Sent');
-$emaillist = $imap->getMessages();
-$overallMessages = $imap->countMessages();
-
 $imap->selectFolder('INBOX.Drafts');
 $draftscount = $imap->countMessages();
 
+$totalpage = $countMsg/$perpage;
+
+if($totalpage > intval($totalpage)){
+    $totalpage = intval($totalpage)+1;
+}
+
+if(isset($_GET['page'])){
+    if(intval($_GET['page']) > intval($totalpage)){
+        util_redirect($cururl);
+    }
+    if(intval($_GET['page']) == 0){
+        util_redirect($cururl);
+    }
+}
 
 
 global $AI;
 $AI->skin->css('includes/plugins/imap/style.css');
 ?>
 
+<script>
+
+    $(function () {
+
+        if($('#delform').find('.mailids').length > 0){
+            $('#deleteBtn').show();
+        }else{
+            $('#deleteBtn').hide();
+        }
+
+        $('.mailchk').click(function(){
+            if($(this).is(':checked')){
+                $('#delform').append('<input type="hidden" name="mailids[]" class="mailids" value="'+$(this).val()+'" />');
+            }else{
+                $('#delform').find('.mailids[value="'+$(this).val()+'"]').remove();
+            }
+
+            if($('#delform').find('.mailids').length > 0){
+                $('#deleteBtn').show();
+            }else{
+                $('#deleteBtn').hide();
+            }
+        });
+
+        $('#skey').keyup(function(e){
+            if(e.keyCode == 13)
+            {
+                $('#searchform').submit();
+            }
+        });
+    });
+
+    function godetails(id){
+        window.location.href = 'imapsentdetail?id='+id;
+    }
+
+
+
+</script>
+
+
 
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>SENTBOX</span></h2>
+
+
+            <div class="maillogodiv"></div>
+
+            <div class="mailinboxheader_form">
+
+                <form id="searchform" method="post" action="<?php echo $cururl;?>?mode=search">
+                    <input id="skey" type="text" name="keyword" class="form-control2 input-sm" placeholder="Search Mail" value="<?php echo $keyword;?>">
+                    <span class="glyphicon glyphicon-search form-control-feedback2"></span>
+
+                    <div class="clearfix"></div>
+                </form>
+
+                <div class="clearfix"></div>
+                </div>
+            <div class="clearfix"></div>
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -125,7 +267,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                 <ul class="nav nav-pills nav-stacked">
                                     <li><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span> Inbox <span class="label label-green pull-right"><?php echo count($emails); ?></span></a></li>
                                     <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
-                                    <li class="active"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
+                                    <li class="activemail"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
                                     <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
 
                                 </ul>
@@ -137,14 +279,25 @@ $AI->skin->css('includes/plugins/imap/style.css');
                     <!-- /mailright.col -->
                     <div class="col-md-10 col-sm-9 col-xs-12 mailinboxright">
                         <div class="box box-primary">
-                            <div class="box-header with-border">
+                        <!--    <div class="box-header with-border">
                                 <div class="box-tools pull-right">
                                     <div class="has-feedback">
-                                        <input type="text" class="form-control input-sm" placeholder="Search Mail">
-                                        <span class="glyphicon glyphicon-search form-control-feedback"></span>
+                                        <form id="searchform" method="post" action="<?php /*echo $cururl;*/?>?mode=search">
+                                            <input id="skey" type="text" name="keyword" class="form-control input-sm" placeholder="Search Mail" value="<?php /*echo $keyword;*/?>">
+                                            <span class="glyphicon glyphicon-search form-control-feedback"></span>
+                                        </form>
                                     </div>
                                 </div>
-                                <!-- /.box-tools -->
+
+                            </div>-->
+
+                            <div class="new_form_header">
+
+                                <h2><span>SENTBOX</span></h2>
+
+
+
+                                <div class="clearfix"></div>
                             </div>
                             <!-- /.box-header -->
                             <div class="box-body no-padding">
@@ -152,9 +305,21 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                     <!-- Check all button -->
                                     <!--<button type="button" class="btn btn-default btn-sm btninputtype"><input type="checkbox"><span class="glyphicon glyphicon-vector-path-square"></span>
                                     </button>-->
-                                    <a type="button" class="btn btn-default btn-sm btnwritemail" href="imapcreate"><span class="glyphicon glyphicon-plus"></span> write mail</a>
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-default btn-sm btndelete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+                                    <a type="button" class="btn btn-default btn-sm btnwritemail" href="imapcreate"><span class="glyphicon glyphicon-plus"></span> Compose</a>
+
+                                    <div class="main_btncon">
+                                        <span><?php echo $start;?>-<?php echo ($end>$countMsg)?$countMsg:$end;?> of <?php echo $countMsg;?></span>
+
+                                        <button type="button" class="btn" <?php echo ($page==1)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $prevpageurl;?>'">&#8249;</button>
+                                        <button type="button" class="btn" <?php echo ($page==$totalpage)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $nextpageurl;?>'">&#8250;</button>
+
+                                    </div>
+
+
+                                    <div class="btn-group" id="deleteBtn">
+                                        <form id="delform" method="post" action="<?php echo $cururl;?>?mode=delete">
+                                        <button type="submit" class="btn btn-default btn-sm btndelete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+                                        </form>
                                         <!---<button type="button" class="btn btn-default btn-sm"><i class="fa fa-reply"></i></button>
                                         <button type="button" class="btn btn-default btn-sm"><i class="fa fa-share"></i></button>--->
                                     </div>
@@ -178,6 +343,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                         <tbody>
                                         <?php
                                         foreach ($emaillist as $key=>$email) {
+
+                                        if(@$_GET['mode'] != 'search' || in_array($email['id'],$searchmail)){
+
                                             $isAttach = 0;
 
                                             $structure = imap_fetchstructure($stream, $email['id']);
@@ -192,24 +360,43 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                             }
 
 
+
+
+                                            $emailbody = strip_tags($email['body']);
+
+                                            $cdate = time();
+                                            $udate = $email['udate'];
+                                            $differ = $cdate-$udate;
+
+                                            if(date('Y',$cdate) > date('Y',$udate)){
+                                                $datestring = date('m/d/Y',$udate);
+                                            }elseif (floor($differ/(60*60*24))){
+                                                $datestring = date('M d',$udate);
+                                            }else{
+                                                $datestring = date('h:i a',$udate);
+                                            }
+
+                                            $unreadcls = '';
+                                            if($email['unread']){
+                                                $unreadcls = 'unreadmail';
+                                            }
+
                                             ?>
 
-                                            <tr>
-                                                <td><input type="checkbox"></td>
+                                            <tr  style="cursor: pointer;" class="<?php echo $unreadcls;?>">
+                                                <td><input type="checkbox" class="mailchk" value="<?php echo $email['id'] ; ?>"></td>
                                                 <td class="mailbox-star"><!--<a href="javascript:void(0);"><span class="glyphicon glyphicon-star text-yellow"></span></a>-->
                                                 </td>
-                                                <td class="mailbox-name"><a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><b><?php echo $email['to'][0] ; ?></b></a>
+                                                <td class="mailbox-name" onclick="godetails('<?php echo $email['id'] ; ?>')"><b><?php echo $email['to'][0] ; ?></b>
                                                 </td>
-                                                <td class="mailbox-subject">
-                                                   <!-- <b class="imptxt">important</b> -->
-                                                    <a href="/~nexmed/imapsentdetail?id=<?php echo $email['id'] ; ?>"><?php echo $email['subject'] ; ?> </a>
+                                                <td class="mailbox-subject" onclick="godetails('<?php echo $email['id'] ; ?>')" style="text-align: left;">
+                                                    <div style="height: 25px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 580px;"><strong><?php echo $email['subject'] ; ?></strong>  <?php echo $emailbody; ?></div>
                                                 </td>
-                                                <td class="mailbox-attachment"><?php echo ($isAttach)?'<span class="glyphicon glyphicon-paperclip"></span>':''; ?></td>
-                                                <td class="mailbox-date"><?php echo
-                                                    date('m/d/Y H:i:s', $email['udate']); ; ?></td>
+                                                <td class="mailbox-attachment" onclick="godetails('<?php echo $email['id'] ; ?>')"><?php echo ($isAttach)?'<span class="glyphicon glyphicon-paperclip"></span>':''; ?></td>
+                                                <td class="mailbox-date" onclick="godetails('<?php echo $email['id'] ; ?>')"><?php echo $datestring; ?></td>
                                             </tr>
                                             <?php
-                                        }
+                                        }}
 
                                         ?>
 

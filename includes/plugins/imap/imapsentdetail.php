@@ -70,6 +70,7 @@ $emails = $imap->getMessages();
 
 $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $username, $password);
 $uid = imap_uid($stream,$_GET['id']);
+$status = imap_setflag_full($stream, $_GET['id'], "\\Seen");
 
 $imap->selectFolder('INBOX.Sent');
 $messageheader=$imap->getMessageHeader($uid);
@@ -178,7 +179,7 @@ $attchmentstr='';
 
 if(count($attachs)){
 
-    $attchmentstr .= '<ul class="mailbox-attachments clearfix hide">';
+    $attchmentstr .= '<ul class="mailbox-attachments clearfix">';
 
     foreach($attachs as $key=>$row){
         $attchmentstr .='<li>
@@ -206,7 +207,12 @@ $AI->skin->css('includes/plugins/imap/style.css');
 <div class="mailinbox">
     <div class="mailinboxblock">
         <div class="mailinboxheader">
-            <h2><span>Mail</span> </h2>
+
+            <div class="maillogodiv"></div>
+
+            <div class="clearfix"></div>
+
+
         </div>
         <div class="mailinboxwrapper">
             <!-- Main content -->
@@ -226,7 +232,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                 <ul class="nav nav-pills nav-stacked">
                                     <li><a href="/~nexmed/imapinbox"><span class="glyphicon glyphicon-inbox"></span>Inbox <span class="label label-green pull-right"><?php echo count($emails) ; ?></span></a></li>
                                     <li><a href="/~nexmed/imapdrafts"><span class="glyphicon glyphicon-pencil"></span> Drafts<span class="label label-red pull-right"><?php echo $draftscount; ?></span></a></li>
-                                    <li class="active"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
+                                    <li class="activemail"><a href="/~nexmed/imapsentbox"><span class="glyphicon glyphicon-envelope"></span> Sent Mail <span class="label label-red pull-right"><?php echo $overallMessages; ?></span></a></li>
                                     <li><a href="/~nexmed/imaptrash"><span class="glyphicon glyphicon-trash"></span> Trash<span class="label label-red pull-right"><?php echo $trashcount; ?></span></a></li>
                                 </ul>
                             </div>
@@ -236,6 +242,12 @@ $AI->skin->css('includes/plugins/imap/style.css');
                     <!-- /mailleft.col -->
                     <!-- /mailright.col -->
                     <div class="col-md-10 col-sm-9 col-xs-12 mailinboxright readmailinboxouterwrapper">
+                        <div class="new_form_header">
+                        <h2><span>Mail</span> </h2>
+
+                            <div class="clearfix"></div>
+                        </div>
+
                         <div class="box box-primary readmailinboxwrapper">
                             <div class="box-header with-border">
                                 <div class="box-tools pull-right">
@@ -272,6 +284,15 @@ $AI->skin->css('includes/plugins/imap/style.css');
                             <div class="box-footer">
                                 <?php echo $attchmentstr; ?>
 
+                            </div>
+                            <div class="mailbox-controls with-border">
+                                <div class="pull-left readmailheadercontrol">
+                                    <a type="button" class="btn replybtn" href="imapcreate?type=replySent&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-left"></i> Reply</a>
+
+                                    <a type="button" class="btn forwardbtn" href="imapcreate?type=forwardSent&id=<?php echo @$_GET['id']; ?>"><i class="glyphicon glyphicon-arrow-right"></i> Forward</a>
+                                    <a type="button" class="btn trashbtn" href="<?php echo $cururl?>&mode=delete"><i class="glyphicon glyphicon-trash"></i> Trash</a>
+                                </div>
+                                <!-- /.btn-group -->
                             </div>
                         </div>
                         <!-- /. box -->
