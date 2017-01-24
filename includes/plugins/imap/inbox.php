@@ -24,9 +24,19 @@ $keyword = '';
 global $AI;
 
 $page = 1;
-$start = 1;
-$perpage = 2;
-$end = 2;
+$perpage = 10;
+$start = (($page-1)*$perpage)+1;
+$end = ($page*$perpage);
+
+
+if(isset($_GET['page']) && intval($_GET['page'])){
+    $page = intval($_GET['page']);
+    $start = (($page-1)*$perpage)+1;
+    $end = ($page*$perpage);
+}
+
+$nextpageurl = 'imapinbox?page='.($page+1);
+$prevpageurl = 'imapinbox?page='.($page-1);
 
 
 $userid = $AI->user->userID;
@@ -81,9 +91,8 @@ $imap->selectFolder('INBOX');
 
 $overallMessages444 = $imap->countMessages();
 $unreadMessages = $imap->countUnreadMessages();
-$emails = $imap->getMessages();
-$countMsg = count($emails);
-//$emails = $imap->getMessages(true,$perpage,($start-1));
+$countMsg = $imap->countMessages();
+$emaillist = $imap->getMessages(true,$perpage,($page-1));
 
 
 if(isset($_GET['mode'])){
@@ -104,9 +113,12 @@ if(isset($_GET['mode'])){
         }
         util_redirect($cururl);
     }else if($_GET['mode'] == 'search'){
-        if(!empty($_POST['keyword'])){
-            $keyword = $_POST['keyword'];
-            /*$stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
+        $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
+        if(!empty($_GET['keyword'])){
+            $keyword = $_GET['keyword'];
+
+            $nextpageurl = 'imapinbox?mode='.$_GET['mode'].'&keyword='.$keyword.'&page='.($page+1);
+            $prevpageurl = 'imapinbox?mode='.$_GET['mode'].'&keyword='.$keyword.'&page='.($page-1);
 
             $searcharr = array();
 
@@ -119,11 +131,27 @@ if(isset($_GET['mode'])){
                 }
             }
 
-            $searchmail = array_unique($searcharr);*/
-            $emails = $imap->getMessagesByCriteria('SUBJECT "'.$keyword.'" FROM "'.$keyword.'"');
-            $countMsg = count($emails);
+            $searchmail = array_unique($searcharr);
 
-           $emails = $imap->getMessagesByCriteria('SUBJECT "'.$keyword.'" BCC "'.$keyword.'" BODY "'.$keyword.'" CC "'.$keyword.'" FROM "'.$keyword.'" TEXT "'.$keyword.'" TO "'.$keyword.'"',$perpage,($start-1));
+            arsort($searchmail);
+
+            $countMsg = count($searchmail);
+
+            $searchmailnew = array();
+            $emaillist = array();
+
+            if(count($searchmail)){
+                foreach ($searchmail as $val){
+                    $searchmailnew[] = $val;
+                }
+
+                $end1 = ($end>$countMsg)?$countMsg:$end;
+                for($i=($start-1);$i<$end1;$i++){
+                    $emaillist[] = $imap->getMessage($searchmailnew[$i]);
+                }
+            }
+
+
 
         }else{
             util_redirect($cururl);
@@ -158,6 +186,20 @@ $draftscount = $imap->countMessages();
 
 $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX", $username, $password);
 
+$totalpage = $countMsg/$perpage;
+
+if($totalpage > intval($totalpage)){
+    $totalpage = intval($totalpage)+1;
+}
+
+if(isset($_GET['page'])){
+    if(intval($_GET['page']) > intval($totalpage)){
+        util_redirect($cururl);
+    }
+    if(intval($_GET['page']) == 0){
+        util_redirect($cururl);
+    }
+}
 
 global $AI;
 $AI->skin->css('includes/plugins/imap/style.css');
@@ -213,8 +255,9 @@ $AI->skin->css('includes/plugins/imap/style.css');
 
             <div class="maillogodiv"></div>
             <div class="mailinboxheader_form">
-            <form id="searchform" method="post" action="<?php /*echo $cururl;*/?>?mode=search">
-                <input id="skey" type="text" name="keyword" class="form-control2 input-sm" placeholder="Search Mail" value="<?php /*echo $keyword;*/?>">
+            <form id="searchform" method="get" action="<?php echo $cururl;?>">
+                <input type="hidden" name="mode" value="search">
+                <input id="skey" type="text" name="keyword" class="form-control2 input-sm" placeholder="Search Mail" value="<?php echo $keyword;?>">
                 <span class="glyphicon glyphicon-search form-control-feedback2"></span>
 
                 <div class="clearfix"></div>
@@ -286,10 +329,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                     <a type="button" class="btn btn-default btn-sm btnwritemail" href="imapcreate"><span class="glyphicon glyphicon-plus"></span> Compose</a>
 
                                     <div class="main_btncon">
-                                        <span><?php echo $start;?>-<?php echo $end;?> of <?php echo $countMsg;?></span>
+                                        <span><?php echo ($countMsg==0)?$countMsg:$start;?>-<?php echo ($end>$countMsg)?$countMsg:$end;?> of <?php echo $countMsg;?></span>
 
-                                        <button type="button" class="btn" disabled="disabled" onclick="gotopage('prev')">&#8249;</button>
-                                        <button type="button" class="btn" onclick="gotopage('next')">&#8250;</button>
+                                        <button type="button" class="btn" <?php echo ($page==1)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $prevpageurl;?>'">&#8249;</button>
+                                        <button type="button" class="btn" <?php echo ($page==$totalpage || $countMsg==0)?'disabled="disabled"':'';?>  onclick="javascript:window.location.href='<?php echo $nextpageurl;?>'">&#8250;</button>
 
                                     </div>
 
@@ -320,8 +363,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                     <table class="table table-hover table-striped">
                                         <tbody>
                                         <?php
-
-                                        foreach ($emails as $key=>$email) {
+                                        foreach ($emaillist as $key=>$email) {
 
                                             //if(@$_GET['mode'] != 'search' || in_array($email['id'],$searchmail)){
 
@@ -352,10 +394,12 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                                     $datestring = date('h:i a',$udate);
                                                 }
 
-                                                $unreadcls = 'unreadmail';
+                                                $unreadcls = '';
                                                 if($email['unread']){
-                                                    $unreadcls = '';
+                                                    $unreadcls = 'unreadmail';
                                                 }
+
+
 
                                                 ?>
 

@@ -341,6 +341,14 @@ if(util_is_POST()) {
                 , "From: ".$maildata['email']."\r\n"."To: ".$send_to."\r\n"."Subject: ".$_POST['subject']."\r\n"."$header\r\n"."$msg1\r\n"."$msg2\r\n"."$msg3\r\n");
             imap_close ($stream);
 
+            if(isset($_GET['type']) && $_GET['type'] == 'draft'){
+                $stream2=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Drafts", $username, $password);
+                if(isset($_GET['id'])){
+                    imap_delete($stream2, intval($_GET['id']));
+                    imap_expunge($stream2);
+                }
+            }
+
 
             util_redirect('imapinbox');
         }

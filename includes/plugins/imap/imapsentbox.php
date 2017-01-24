@@ -21,9 +21,9 @@ $keyword = '';
 
 
 $page = 1;
-$start = 1;
-$perpage = 3;
-$end = 3;
+$perpage = 10;
+$start = (($page-1)*$perpage)+1;
+$end = ($page*$perpage);
 
 if(isset($_GET['page']) && intval($_GET['page'])){
     $page = intval($_GET['page']);
@@ -97,8 +97,6 @@ $stream=@imap_open("{galaxy.apogeehost.com/novalidate-cert}INBOX.Sent", $usernam
 
 
 if(isset($_GET['mode'])){
-    $nextpageurl = 'imapsentbox?mode='.$_GET['mode'].'&page='.($page+1);
-    $prevpageurl = 'imapsentbox?mode='.$_GET['mode'].'&page='.($page-1);
 
 
     if($_GET['mode'] == 'delete'){
@@ -118,8 +116,11 @@ if(isset($_GET['mode'])){
 
 
 
-        if(!empty($_POST['keyword'])){
-            $keyword = $_POST['keyword'];
+        if(!empty($_GET['keyword'])){
+            $keyword = $_GET['keyword'];
+
+            $nextpageurl = 'imapsentbox?mode='.$_GET['mode'].'&keyword='.$keyword.'&page='.($page+1);
+            $prevpageurl = 'imapsentbox?mode='.$_GET['mode'].'&keyword='.$keyword.'&page='.($page-1);
 
             $searcharr = array();
 
@@ -133,14 +134,21 @@ if(isset($_GET['mode'])){
             }
 
             $searchmail = array_unique($searcharr);
+            arsort($searchmail);
 
             $countMsg = count($searchmail);
 
+            $searchmailnew = array();
             $emaillist = array();
 
             if(count($searchmail)){
                 foreach ($searchmail as $val){
-                    $emaillist[] = $imap->getMessage($val);
+                    $searchmailnew[] = $val;
+                }
+
+                $end1 = ($end>$countMsg)?$countMsg:$end;
+                for($i=($start-1);$i<$end1;$i++){
+                    $emaillist[] = $imap->getMessage($searchmail[$i]);
                 }
             }
 
@@ -236,7 +244,8 @@ $AI->skin->css('includes/plugins/imap/style.css');
 
             <div class="mailinboxheader_form">
 
-                <form id="searchform" method="post" action="<?php echo $cururl;?>?mode=search">
+                <form id="searchform" method="get" action="<?php echo $cururl;?>">
+                    <input type="hidden" name="mode" value="search">
                     <input id="skey" type="text" name="keyword" class="form-control2 input-sm" placeholder="Search Mail" value="<?php echo $keyword;?>">
                     <span class="glyphicon glyphicon-search form-control-feedback2"></span>
 
@@ -308,10 +317,10 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                     <a type="button" class="btn btn-default btn-sm btnwritemail" href="imapcreate"><span class="glyphicon glyphicon-plus"></span> Compose</a>
 
                                     <div class="main_btncon">
-                                        <span><?php echo $start;?>-<?php echo ($end>$countMsg)?$countMsg:$end;?> of <?php echo $countMsg;?></span>
+                                        <span><?php echo ($countMsg==0)?$countMsg:$start;?>-<?php echo ($end>$countMsg)?$countMsg:$end;?> of <?php echo $countMsg;?></span>
 
                                         <button type="button" class="btn" <?php echo ($page==1)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $prevpageurl;?>'">&#8249;</button>
-                                        <button type="button" class="btn" <?php echo ($page==$totalpage)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $nextpageurl;?>'">&#8250;</button>
+                                        <button type="button" class="btn" <?php echo ($page==$totalpage || $countMsg==0)?'disabled="disabled"':'';?> onclick="javascript:window.location.href='<?php echo $nextpageurl;?>'">&#8250;</button>
 
                                     </div>
 
@@ -344,7 +353,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                         <?php
                                         foreach ($emaillist as $key=>$email) {
 
-                                        if(@$_GET['mode'] != 'search' || in_array($email['id'],$searchmail)){
+                                        //if(@$_GET['mode'] != 'search' || in_array($email['id'],$searchmail)){
 
                                             $isAttach = 0;
 
@@ -396,7 +405,7 @@ $AI->skin->css('includes/plugins/imap/style.css');
                                                 <td class="mailbox-date" onclick="godetails('<?php echo $email['id'] ; ?>')"><?php echo $datestring; ?></td>
                                             </tr>
                                             <?php
-                                        }}
+                                        }
 
                                         ?>
 
