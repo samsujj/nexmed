@@ -26,6 +26,7 @@ require_once(ai_cascadepath('includes/plugins/pop3/api.php'));
 		var $view_include_file = 'includes/modules/user_mails/includes/draw.user_mails.view.php';
 		var $edit_include_file = 'includes/modules/user_mails/includes/draw.user_mails.edit.php';
 		var $cngpass_include_file = 'includes/modules/user_mails/includes/draw.user_mails.cngpass.php';
+		var $addmail_include_file = 'includes/modules/user_mails/includes/draw.user_mails.addmail.php';
 		var $table_include_file = 'includes/modules/user_mails/includes/draw.user_mails.table.php';
 		var $qsearch_include_file = 'includes/modules/user_mails/includes/draw.user_mails.qsearch.php';
 		var $asearch_include_file = 'includes/modules/user_mails/includes/draw.user_mails.asearch.php';
@@ -340,6 +341,200 @@ require_once(ai_cascadepath('includes/plugins/pop3/api.php'));
 			echo '<div class="te_edit_stats" data-row-i="' . (int) $this->_row_i . '"></div>';
 		}
 
+
+		function te_mode_addmail(){
+
+			$this->get_paging_info();
+			$this->get_relative_paging_info();
+			$this->draw_unique_div_open();
+			$this->draw_addmail( $this->url( 'te_mode=addmail') );
+			$this->draw_unique_div_close();
+		}
+
+		function draw_addmail($postURL)
+		{
+
+			$mailarray = array();
+			$mailarray1 = array();
+
+			$cpanelusr = 'nexmed';
+			$cpanelpass = 'l0PS8AyMm0aB';
+			$xmlapi = new xmlapi('galaxy.apogeehost.com');
+			$xmlapi->set_port( 2083 );
+			$xmlapi->password_auth($cpanelusr,$cpanelpass);
+			$xmlapi->set_debug(0);
+
+			$result = $xmlapi->api1_query($cpanelusr, 'Email', 'listpops',array('user'));
+
+			if(isset($result->data->result)){
+				$mailres = $result->data->result;
+
+				if(!empty($mailres)){
+					$mailarray1 = explode('@nexmedsolutions.com',$mailres);
+				}
+			}
+
+			if(count($mailarray1)){
+				foreach($mailarray1 as $val){
+					if(trim($val) != '')
+						$mailarray[] = trim($val);
+				}
+			}
+
+			global $AI;
+
+			$this->_pgSize = $this->get_session( 'te_pgSize' );
+
+			$sql = "SELECT u.userID,u.username,u.first_name,u.last_name,u.account_type FROM users u WHERE u.username NOT IN ('".implode("','",$mailarray)."') AND u.account_type IN ('Approved Reps','Representatives') ORDER BY u.username";
+
+			$table_result = db_pagedQuery_relative($sql, $this->_row_i, $this->_pgSize, $this->_row_a, $this->_row_z, $this->_nRows, $this->_keyFieldName);
+
+			$this->include_plugin_css();
+			require( ai_cascadepath( $this->addmail_include_file ) );
+			echo '<div class="te_edit_stats" data-row-i="' . (int) $this->_row_i . '"></div>';
+		}
+
+
+		function draw_Paging_custom($mode = 'table')
+		{
+
+			$noofPages = $this->_nRows/$this->_pgSize;
+
+			if($noofPages > intval($noofPages)){
+				$noofPages = intval($noofPages)+1;
+			}
+
+			?>
+			<table class="temain_paging">
+				<tr>
+					<td class="te_paging te_paging_left_cell">
+						<?php
+						if( intval($this->_pgNumber) > 1 )
+						{
+							?>
+							<a class="te_paging te_first_icon" href="<?php echo htmlspecialchars($this->url( 'te_mode=' . $mode . '&te_pgNumber=1' )); ?>" title="First Page"><span class="glyphicon glyphicon-step-backward"></span></a>
+							<a class="te_paging te_prev_icon" href="<?php echo htmlspecialchars($this->url( 'te_mode=' . $mode . '&te_pgNumber=' . ( intval($this->_pgNumber) - 1 ) )); ?>" title="Previous Page"><span class="glyphicon glyphicon-backward"></span></a>
+							<?php
+						}
+						else
+						{
+							?>
+							<div class="te_paging te_first_icon_disabled" title="First Page"><span class="glyphicon glyphicon-step-backward"></span></div>
+							<div class="te_paging te_prev_icon_disabled" title="Previous Page"><span class="glyphicon glyphicon-backward"></span></div>
+							<?php
+						}
+						?>
+					</td>
+					<td class="te_paging te_paging_middle_cell">
+						<?php
+						echo $this->_nRows . ' ' . htmlspecialchars($this->_unit_label) . ', Page ';
+
+						if( intval($noofPages) > 1 && intval($noofPages) <= $this->_max_results_2_select_pg_num )
+						{
+							echo '<select class="te_paging" onchange="document.location=\'' . htmlspecialchars($this->url( 'te_mode=' . $this->te_mode )) . '&te_pgNumber=\' + this.options[this.selectedIndex].value;">';
+							for($pI = 1; $pI <= $noofPages; $pI++)
+							{
+								echo '<option value="' . $pI . '" ' . ( intval($this->_pgNumber) == $pI ? 'selected="selected"' : '' ) . '>' . number_format($pI) . '</option>';
+							}
+							echo '</select>';
+						}
+						else
+						{
+							echo $this->_pgNumber;
+						}
+
+						echo ' of ' . $noofPages;
+
+						if( count( $this->_paging_size_options ) > 0 )
+						{
+							echo ', Page Size ';
+							echo '<select class="te_paging" onchange="document.location=\'' . htmlspecialchars($this->url( 'te_mode=' . $this->te_mode )) . '&te_pgSize=\' + this.options[this.selectedIndex].value;">';
+							foreach( $this->_paging_size_options as $pg_opt )
+							{
+								echo '<option value="' . $pg_opt . '" ' . ( intval($this->_pgSize) == $pg_opt ? 'selected="selected"' : '' ) . '>' . number_format($pg_opt) . '</option>';
+							}
+							echo '</select>';
+						}
+						?>
+					</td>
+					<td class="te_paging te_paging_right_cell">
+						<?php
+						if( intval($this->_pgNumber) < intval($noofPages) )
+						{
+							?>
+							<a class="te_paging te_next_icon" href="<?php echo htmlspecialchars($this->url( 'te_mode=' . $mode . '&te_pgNumber=' . ( intval( $this->_pgNumber ) + 1 ) )); ?>" title="Next Page"><span class="glyphicon glyphicon-forward"></span></a>
+							<a class="te_paging te_last_icon" href="<?php echo htmlspecialchars($this->url( 'te_mode=' . $mode . '&te_pgNumber=' . $noofPages )); ?>" title="Last Page"><span class="glyphicon glyphicon-step-forward"></span></a>
+							<?php
+						}
+						else
+						{
+							?>
+							<div class="te_paging te_next_icon_disabled" title="Next Page"><span class="glyphicon glyphicon-forward"></span></div>
+							<div class="te_paging te_last_icon_disabled" title="Last Page"><span class="glyphicon glyphicon-step-forward"></span></div>
+							<?php
+						}
+						?>
+					</td>
+				</tr>
+			</table>
+			<?php
+		}
+
+
+		function te_mode_addimapmail(){
+
+			$url = $this->url('te_mode=addmail');
+			$pass = 'P@ss0987';
+
+			if(isset($_GET['redirect'])){
+				$url = $_GET['redirect'];
+			}
+
+
+			if(!isset($_GET['te_key']) || intval($_GET['te_key']) == 0){
+				util_redirect( $url );
+			}
+
+			$userid = intval($_GET['te_key']);
+
+			global $AI;
+
+			$userres = $AI->db->GetAll("SELECT * FROM users WHERE account_type IN ('Approved Reps','Representatives') AND userID=".$userid);
+			if (!isset($userres)){
+				util_redirect( $url );
+			}
+
+			$username = $userres[0]['username'];
+
+			$usermailres = $AI->db->GetAll("SELECT * FROM user_mails WHERE userID=".$userid);
+
+			if (isset($usermailres)){
+				$cpanelusr = 'nexmed';
+				$cpanelpass = 'l0PS8AyMm0aB';
+				$xmlapi = new xmlapi('galaxy.apogeehost.com');
+				$xmlapi->set_port( 2083 );
+				$xmlapi->password_auth($cpanelusr,$cpanelpass);
+				$xmlapi->set_debug(0); //output actions in the error log 1 for true and 0 false
+				$result = $xmlapi->api1_query($cpanelusr, 'Email', 'addpop', array(strtolower($username).'@nexmedsolutions.com',$pass,'unlimited','nexmedsolutions.com'));
+
+				db_query ("UPDATE user_mails SET email='".strtolower($username)."@nexmedsolutions.com',password='".base64_encode(base64_encode($pass))."' WHERE userID=".$userid);
+
+
+
+			}else{
+				$cpanelusr = 'nexmed';
+				$cpanelpass = 'l0PS8AyMm0aB';
+				$xmlapi = new xmlapi('galaxy.apogeehost.com');
+				$xmlapi->set_port( 2083 );
+				$xmlapi->password_auth($cpanelusr,$cpanelpass);
+				$xmlapi->set_debug(0); //output actions in the error log 1 for true and 0 false
+				$result = $xmlapi->api1_query($cpanelusr, 'Email', 'addpop', array(strtolower($username).'@nexmedsolutions.com',$pass,'unlimited','nexmedsolutions.com'));
+
+				db_query( "INSERT INTO `user_mails` ( `userID`, `email`, `password`) VALUES ( ".$userid.", '".strtolower($username)."@nexmedsolutions.com', '".base64_encode(base64_encode($pass))."'");
+			}
+			util_redirect( $url );
+
+		}
 
 
 

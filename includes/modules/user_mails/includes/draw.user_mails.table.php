@@ -62,6 +62,11 @@ for ( $table_i = 0; $table_i < $this->_pgSize && $table_row; $table_i++ )
 		
 		echo "<td>";
 			$this->draw_value_field('userID', $table_row['userID'], $this->db[$this->_keyFieldName], 'table');
+		//print_r($AI->user);
+		if($AI->user->account_type=='Website Developer' || $AI->user->account_type=='Administrator'){
+			echo "<br/> Pasword : ";
+			echo $this->draw_value_field('password', base64_decode(base64_decode(($table_row['password']))), $this->db[$this->_keyFieldName], 'table');
+		}
 		echo "</td>";
 		echo "<td>";
 		$this->draw_value_field('email', $table_row['email'], $this->db[$this->_keyFieldName], 'table');
@@ -90,4 +95,10 @@ for ( $table_i = 0; $table_i < $this->_pgSize && $table_row; $table_i++ )
 
 echo '</table>';
 
+
+//DRAW PAGING
+if( $this->_nRows > $this->_draw_paging_for_more_than_n_results )
+{
+	$this->draw_Paging_custom();
+}
 ?>

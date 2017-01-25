@@ -57,7 +57,7 @@ class user_mails_module extends module_base
 			//ADD PERMISSIONS
 			$perm_classes = array('user_mails');
 			$perm_groups = array('Website Developers', 'Administrators','Representatives');
-			$perm_types = array('ajax','ajax_cmd_inline_edit','ajax_cmd_inline_save','asearch','copy','delete','insert','multidelete','table','update','view','cngpass');
+			$perm_types = array('ajax','ajax_cmd_inline_edit','ajax_cmd_inline_save','asearch','copy','delete','insert','multidelete','table','update','view','cngpass','addmail','addimapmail');
 			$AI->grant_multiple_perms( $perm_classes, $perm_groups, $perm_types, false );
 			$perm_groups = array('Users');
 			$perm_types = array('ajax','table');
@@ -71,7 +71,7 @@ class user_mails_module extends module_base
 			//ADD PERMISSIONS
 			$perm_classes = array('user_mails');
 			$perm_groups = array('Representatives');
-			$perm_types = array('ajax','ajax_cmd_inline_edit','ajax_cmd_inline_save','asearch','copy','delete','insert','multidelete','table','update','view','cngpass');
+			$perm_types = array('ajax','ajax_cmd_inline_edit','ajax_cmd_inline_save','asearch','copy','delete','insert','multidelete','table','update','view','cngpass','addmail','addimapmail');
 			$AI->grant_multiple_perms( $perm_classes, $perm_groups, $perm_types, false );
 			$AI->grant_page_perm( 'user_mails', array('Representatives') );
 		}

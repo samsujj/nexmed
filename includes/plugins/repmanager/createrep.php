@@ -69,7 +69,7 @@ if(util_is_POST()) {
 
         /****************Add mail Table[start]*********************/
         $te_user_mails = new C_te_user_mails();
-        $te_user_mails->insert_data(array('userID'=>@$landing_page->session['created_user'],'email'=>$_POST['username'].'@nexmedsolutions.com','password'=>$_POST['password']));
+        $te_user_mails->insert_data(array('userID'=>@$landing_page->session['created_user'],'email'=>strtolower($_POST['username']).'@nexmedsolutions.com','password'=>$_POST['password']));
 
         /****************Add mail Table[end]********************88*/
 
@@ -104,7 +104,7 @@ if(util_is_POST()) {
         $xmlapi->set_port( 2083 );
         $xmlapi->password_auth($cpanelusr,$cpanelpass);
         $xmlapi->set_debug(0); //output actions in the error log 1 for true and 0 false
-        $result = $xmlapi->api1_query($cpanelusr, 'Email', 'addpop', array($_POST['username'].'@nexmedsolutions.com',$_POST['password'],'unlimited','nexmedsolutions.com'));
+        $result = $xmlapi->api1_query($cpanelusr, 'Email', 'addpop', array(strtolower($_POST['username']).'@nexmedsolutions.com',$_POST['password'],'unlimited','nexmedsolutions.com'));
        // $x=imap_mail('debasiskar007@gmail.com', 'test 23', 'test body', $_POST['username'].'@nexmedsolutions.com');
         //var_dump($x);
         //exit;
